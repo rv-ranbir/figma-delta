@@ -1,7 +1,6 @@
 {
-  "name": "@local/figma-delta",
-  "version": "0.1.2",
-  "private": true,
+  "name": "figma-delta",
+  "version": "0.1.3",
   "description": "Figma design comparison for QA, developers and AI agents",
   "type": "module",
   "engines": {
@@ -21,7 +20,8 @@
     "test": "node --test --test-concurrency=1 test/*.test.js",
     "demo": "node examples/demo.js",
     "mcp": "node src/mcp.js",
-    "test:unit": "node --test test/core.test.js test/mcp.test.js test/paths.test.js"
+    "test:unit": "node --test test/core.test.js test/mcp.test.js test/paths.test.js",
+    "test:package": "node scripts/verify-package.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.1",
@@ -41,5 +41,21 @@
   "homepage": "https://github.com/rv-ranbir/figma-delta#readme",
   "bugs": {
     "url": "https://github.com/rv-ranbir/figma-delta/issues"
-  }
+  },
+  "license": "MIT",
+  "author": "rv-ranbir",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "files": [
+    "src",
+    "templates",
+    "scripts/setup.js",
+    "scripts/doctor.js",
+    "docs/findings-format.md",
+    "docs/distribution.md",
+    "SECURITY.md",
+    "LICENSE"
+  ]
 }

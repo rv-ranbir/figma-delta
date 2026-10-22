@@ -12,7 +12,7 @@ New-Item -ItemType Directory -Path $payload -Force | Out-Null
 try {
     # Explicit allowlist: never copy the checkout, local projects or installed dependencies wholesale.
     $entries = @('src', 'templates', 'scripts', 'examples', 'test', 'docs',
-        'package.json', 'package-lock.json', '.npmrc', '.nvmrc', 'README.md', 'SECURITY.md', 'START-HERE-WINDOWS.md',
+        'package.json', 'package-lock.json', '.npmrc', '.nvmrc', 'README.md', 'SECURITY.md', 'LICENSE', 'START-HERE-WINDOWS.md',
         'START-HERE-MAC.md', 'VALIDATION.md', 'CURSOR-BENCHMARK.md', '.gitignore')
     foreach ($entry in $entries) {
         $source = Join-Path $toolkitRoot $entry
