@@ -1,0 +1,20 @@
+@font-face{font-family:Inter;src:url('inter-400.woff2') format('woff2');font-style:normal;font-weight:400;font-display:block}
+@font-face{font-family:Inter;src:url('inter-700.woff2') format('woff2');font-style:normal;font-weight:700;font-display:block}
+*{box-sizing:border-box}
+body{margin:0;background:#f3f5f9;color:#182238;font-family:Inter,sans-serif}
+header{height:86px;background:#152641;color:white;display:flex;align-items:center;justify-content:space-between;padding:0 48px}
+.brand{font-size:20px;font-weight:700;line-height:24px}
+.avatar{width:32px;height:32px;border-radius:50%;background:#c2d9ff;color:#15315c;display:grid;place-items:center;font-size:13px;line-height:16px}
+main{padding:40px 64px;display:flex;flex-direction:column;gap:32px}
+.overview{display:flex;flex-direction:column;gap:36px}
+.intro{display:flex;flex-direction:column;gap:12px}
+.eyebrow{font-size:12px;line-height:16px;color:#526079}
+.heading-group{display:flex;flex-direction:column;gap:8px}
+h1{font-size:36px;line-height:40px;margin:0;font-weight:700}
+p{color:#526079;font-size:15px;line-height:24px;margin:0}
+.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:28px}
+.card{height:160px;background:white;border:1px solid #dce2ed;border-radius:12px;padding:22px;display:flex;flex-direction:column;gap:12px}
+.card span{font-size:13px;line-height:18px;color:#526079}
+.card strong{font-size:30px;line-height:40px;font-weight:700}
+.card small{font-size:12px;line-height:16px;color:#19704e}
+footer{color:#526079;font-size:12px;line-height:16px}

@@ -1,0 +1,7 @@
+---
+description: Use objective Figma visual verification for design implementation work
+alwaysApply: false
+---
+When implementing or repairing a screen from Figma, follow the figma-fidelity skill.
+First read applicable repository and nested instructions, relevant existing skills/rules and design-system guidance. Reuse the host's available MCP tools, shared components, tokens, styling and icon patterns. This rule supplements the repository's conventions; it does not replace them. Do not duplicate or overwrite existing skills, rules or MCP servers. Surface design-versus-repository conflicts without silently changing shared tokens or reference expectations; resolve them under the user's direction.
+Use real project components, tokens, fonts and source assets. Inspect the Figma reference and rendered browser evidence before declaring completion. Keep the reference fixed during repair. Respect the session's iteration limit and stop signal. Do not improve the visual score by hiding content, replacing the UI with a raster image, weakening checks or changing unrelated code. A successful build is not visual verification. Report unresolved differences and unmapped coverage explicitly.

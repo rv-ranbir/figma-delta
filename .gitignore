@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.figma-fidelity/
+coverage/
+*.tgz
+.demo-project/
+.sample-project/
+.cursor-benchmark/
+FIGMA-TOOLKIT-PROJECT-HANDOFF.md
+docs/superpowers/
+.env
+.env.*
+!.env.example
+fidelity.auth.json

@@ -1,0 +1,14 @@
+{
+  "url": "https://www.figma.com/design/G3dChC00CQ0r2OFPUTbtQd/Figma-Fidelity-Integration-Test?node-id=2-2",
+  "frameId": "2:2",
+  "viewport": {"width": 960, "height": 640},
+  "font": "Inter",
+  "regions": [
+    {"name":"header","selector":"#header","rect":{"x":0,"y":0,"width":960,"height":64}},
+    {"name":"title","selector":"#title","rect":{"x":48,"y":132,"width":864,"height":40},"styles":{"fontFamily":"Inter","fontSize":"32px","fontWeight":"700","lineHeight":"40px"}},
+    {"name":"cards","selector":"#cards","rect":{"x":48,"y":240,"width":864,"height":160}},
+    {"name":"metric-0","selector":"#metric-0","rect":{"x":48,"y":240,"width":274.6666564941406,"height":160}},
+    {"name":"metric-1","selector":"#metric-1","rect":{"x":342.6666564941406,"y":240,"width":274.6666564941406,"height":160}},
+    {"name":"metric-2","selector":"#metric-2","rect":{"x":637.3333129882812,"y":240,"width":274.6666564941406,"height":160}}
+  ]
+}

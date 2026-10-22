@@ -1,0 +1,45 @@
+{
+  "name": "@local/figma-delta",
+  "version": "0.1.2",
+  "private": true,
+  "description": "Figma design comparison for QA, developers and AI agents",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "figma-delta": "src/cli.js",
+    "figma-fidelity": "src/cli.js"
+  },
+  "scripts": {
+    "setup": "node scripts/setup.js",
+    "doctor": "node scripts/doctor.js",
+    "release:zip": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/package-release.ps1",
+    "sample": "node examples/serve-sample.js",
+    "sample:prepare": "node examples/prepare-sample.js",
+    "sample:check": "node examples/check-sample.js",
+    "test": "node --test --test-concurrency=1 test/*.test.js",
+    "demo": "node examples/demo.js",
+    "mcp": "node src/mcp.js",
+    "test:unit": "node --test test/core.test.js test/mcp.test.js test/paths.test.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.1",
+    "culori": "4.0.2",
+    "pixelmatch": "7.2.0",
+    "playwright": "1.58.2",
+    "sharp": "0.35.5",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "@fontsource/inter": "5.3.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rv-ranbir/figma-delta.git"
+  },
+  "homepage": "https://github.com/rv-ranbir/figma-delta#readme",
+  "bugs": {
+    "url": "https://github.com/rv-ranbir/figma-delta/issues"
+  }
+}
