@@ -74,8 +74,8 @@ Add them in the repository's Settings → Secrets and variables → Actions. Nev
 To release:
 
 1. Bump package.json and package-lock.json together in a PR; update displayed CLI/MCP versions when changing the release version.
-2. Let native CI, packed-consumer tests and CodeQL pass, then obtain the independent approval required by main protection and merge the PR.
+2. Let native CI, packed-consumer tests and CodeQL pass, then merge the PR. Non-admin contributors require an independent approval; repository admins have the configured PR-review exception.
 3. Successful main push validation creates `v<version>` when absent. The release pipeline accepts tags only for commits already on main, validates the tag/version, audits and tests, and saves the validated tarball as an artifact.
 4. Publication downloads that same artifact and uses npm provenance. Stable versions go to `latest`; prereleases go to `next`. A matching already-published tarball is skipped; a different artifact at the same version fails instead of overwriting. A GitHub Release includes the tarball after successful publication.
 
-The first release prepared by this change is **0.1.3**. Do not advertise npm installation as working until the registry confirms the publish. A failed tag publication can be rerun from Actions after correcting credentials; do not reuse a version for changed package contents. The workflow does not bypass main's required approval.
+The first release prepared by this change is **0.1.3**. Do not advertise npm installation as working until the registry confirms the publish. A failed tag publication can be rerun from Actions after correcting credentials; do not reuse a version for changed package contents. The workflow does not alter main's review policy or bypass its required checks.
