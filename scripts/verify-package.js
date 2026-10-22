@@ -61,11 +61,11 @@ try{
     await capture(app,screenSchema.parse(config.screens[0]),path.join(app,'design/reference.png'));
   `,installed,app],consumer);
   const mcp=JSON.parse(await fs.readFile(path.join(app,'.cursor','mcp.json'),'utf8')).mcpServers['figma-fidelity'];
-  assert.equal(mcp.args[0],path.join(installed,'src','mcp.js'));
+  assert.equal(await fs.realpath(mcp.args[0]),await fs.realpath(path.join(installed,'src','mcp.js')));
   client=new Client({name:'package-consumer',version:'1.0.0'});
   await client.connect(new StdioClientTransport({command:mcp.command,args:mcp.args,stderr:'pipe'}));
   assert.ok((await client.listTools()).tools.some(tool=>tool.name==='fidelity_verify'));
-  const project=await client.callTool({name:'fidelity_project',arguments:{}});assert.equal(JSON.parse(project.content[0].text).project,app);
+  const project=await client.callTool({name:'fidelity_project',arguments:{}});assert.equal(await fs.realpath(JSON.parse(project.content[0].text).project),await fs.realpath(app));
   color='red';
   let failed;
   try{await run([cli,'check','--project',app,'--screen','desktop','--format','html'],consumer);}catch(error){assert.equal(error.code,1);failed=JSON.parse(error.stdout);}
