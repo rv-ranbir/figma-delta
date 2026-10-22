@@ -2,7 +2,7 @@
 
 Native Mac execution is still unverified. This checkout was validated on Windows x64; the CI matrix has been prepared but has not run.
 
-Install Node.js 22 or newer for your Mac architecture. Put the toolkit at `~/Projects/figma-toolkit`, with `package.json` directly inside it. Copy source files, not Windows `node_modules` or browser binaries.
+Install the latest Node.js 24 (minimum 24.22.1) for your Mac architecture. Put the toolkit at `~/Projects/figma-toolkit`, with `package.json` directly inside it. Copy source files, not Windows `node_modules` or browser binaries.
 
 ```sh
 cd "$HOME/Projects/figma-toolkit"

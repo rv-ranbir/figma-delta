@@ -24,7 +24,7 @@ Exact property checks need a mapping between a unique DOM selector and Figma nod
 
 ### Get it and share it
 
-Start with the downloadable source ZIP for a pilot. Extract it to a permanent folder, then follow the quick start below. Node.js 22+ and a local Chromium installation through setup are required. Dependencies and the browser download require internet access.
+Start with the downloadable source ZIP for a pilot. Extract it to a permanent folder, then follow the quick start below. the latest Node.js 24 (minimum 24.22.1) and a local Chromium installation through setup are required. Dependencies and the browser download require internet access.
 
 Maintainers can build a clean ZIP and SHA-256 checksum on Windows:
 
@@ -65,7 +65,7 @@ npm test
 npm run demo
 ```
 
-Requires Node.js 22 or newer. The demo starts and stops its own local fixture server, captures a known reference, verifies a deliberately incorrect layout, applies a known fixture correction, and verifies again. It prints before/after HTML report paths. **The demo is a deterministic test, not evidence of autonomous AI repair or a live Figma integration.**
+Requires the latest Node.js 24 (minimum 24.22.1). The demo starts and stops its own local fixture server, captures a known reference, verifies a deliberately incorrect layout, applies a known fixture correction, and verifies again. It prints before/after HTML report paths. **The demo is a deterministic test, not evidence of autonomous AI repair or a live Figma integration.**
 
 Native Windows x64 validation is recorded in [VALIDATION.md](VALIDATION.md). Mac installation is described in [START-HERE-MAC.md](START-HERE-MAC.md); native Mac validation remains pending. Never copy `node_modules` between operating systems or CPU architectures.
 
@@ -250,6 +250,10 @@ MCP runs over standard input/output using the official MCP SDK, with a fixed app
 | `fidelity_image` | Return reference/actual/diff/overlay as MCP images |
 
 Report outputs: `.figma-fidelity/runs/<screen>/<run-id>/` contains `result.json`, `findings.json`, `report.json` and reference/actual/diff/overlay PNGs. HTML modes also write `report.html`; interactive HTML runs include regional crops when mapped. The default HTML lists findings with compact JSON. The optional interactive QA workspace keeps per-finding comparisons and review controls, with evidence images loaded from adjacent files. Keep the report folder together when sharing; full diagnostic JSON remains separate. Old evidence is preserved; no automatic retention cleanup is performed. Parallel modifying operations in one app are rejected through a lock. If a crashed process leaves a lock, confirm no operation is running and remove `.figma-fidelity/operation.lock`.
+
+## Security and supported Node version
+
+Use the latest **Node.js 24** release; the current minimum is **24.22.1**. `.nvmrc` tracks the 24 line, package engines reject older/other major versions during installation, and CI resolves the latest 24 patch on each run. GitHub Actions are pinned to commit IDs, dependency auditing runs in CI, and CodeQL/Dependabot provide ongoing checks. See [SECURITY.md](SECURITY.md) for reporting vulnerabilities and local trust boundaries.
 
 ## Tests and development
 

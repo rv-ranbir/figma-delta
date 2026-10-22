@@ -21,7 +21,7 @@ Share through your team's file-delivery channel. The checksum detects transfer c
 
 ## Recipient onboarding
 
-1. Install Node.js 22 or newer, extract the archive and keep the toolkit folder in a permanent location.
+1. Install the latest Node.js 24 (minimum 24.22.1), extract the archive and keep the toolkit folder in a permanent location.
 2. Open a terminal in that folder and run `npm ci`, `npm run setup`, `npm run doctor`, then `npm run demo`.
 3. Start the target application using its own development or preview command.
 4. Run the initializer with the app folder, URL and exact reference viewport. Follow the README to supply a local reference or sync an accessible Figma frame and map regions.
