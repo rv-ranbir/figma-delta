@@ -29,7 +29,7 @@ try{
   const packed=JSON.parse((await npm(['pack','--json','--pack-destination',output],root)).stdout);
   const artifact=Array.isArray(packed)?packed[0]:Object.values(packed)[0];
   const files=new Set(artifact.files.map(file=>file.path));
-  for(const file of ['src/api.js','src/privacy.js','docs/prepared-pages.md','src/cli.js','src/mcp.js','src/report.css','src/report-client.js','templates/SKILL.md','templates/figma-fidelity.mdc','scripts/setup.js','scripts/doctor.js','LICENSE'])assert.ok(files.has(file),`Missing packaged ${file}`);
+  for(const file of ['src/api.js','src/privacy.js','docs/prepared-pages.md','docs/sample-prompts.md','docs/showcase.md','docs/images/qa-workspace.png','docs/images/simple-report.png','docs/images/compact-json.png','docs/images/finding-json.png','src/cli.js','src/mcp.js','src/report.css','src/report-client.js','templates/SKILL.md','templates/figma-fidelity.mdc','scripts/setup.js','scripts/doctor.js','LICENSE'])assert.ok(files.has(file),`Missing packaged ${file}`);
   for(const file of files)assert.ok(!/^(?:test|examples|node_modules|\.tools|\.cursor-benchmark|\.github)\//.test(file)&&!/(?:^|\/)(?:\.env(?:\..*)?|fidelity\.auth\.json|FIGMA-TOOLKIT-PROJECT-HANDOFF\.md)$/.test(file),`Unexpected packaged ${file}`);
   const tarball=path.join(output,artifact.filename);
   const consumer=path.join(temporary,'consumer');await fs.mkdir(consumer);

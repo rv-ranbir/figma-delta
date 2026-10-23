@@ -9,7 +9,7 @@ Compare Figma designs with a running web application. Review exact property diff
 [![Node.js 24](https://img.shields.io/badge/Node.js-24-417E38?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 [![MIT license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-[Installation](#installation) · [Quick start](#quick-start) · [Reports](#reports) · [AI workflows](#ai-workflows) · [Documentation](#documentation)
+[Installation](#installation) · [Quick start](#quick-start) · [Sample prompts](docs/sample-prompts.md) · [Reports](#reports) · [AI workflows](#ai-workflows) · [Documentation](#documentation)
 
 ## Built for the design-to-development loop
 
@@ -24,6 +24,12 @@ Compare Figma designs with a running web application. Review exact property diff
 - **Work with existing projects.** The agent workflow follows applicable repository instructions, relevant skills and available MCP tools, and reuses existing components and design tokens.
 - **Keep repair bounded.** Pin the reference and configuration, verify changes against the same session, and stop at the configured limit.
 - **Run locally.** CLI and report generation require no AI API key. The toolkit measures; your developer or connected agent makes source changes.
+
+## See it in action
+
+![Figma Delta QA workspace showing exact color and font-size differences](docs/images/qa-workspace.png)
+
+See the reports Figma Delta produces: the [QA workspace](docs/images/qa-workspace.png), [simple HTML report](docs/images/simple-report.png), [compact JSON](docs/images/compact-json.png) and [JSON for one finding](docs/images/finding-json.png). These are actual generated reports from a fictional fixture with five intentional CSS differences. See the [report showcase](docs/showcase.md) for details and reproduction steps.
 
 ## Installation
 
@@ -162,6 +168,8 @@ See the [findings format](docs/findings-format.md) for comparison rules, coverag
 
 ## AI workflows
 
+Start with the [copy-paste scenario prompts](docs/sample-prompts.md) for quick QA, interactive review, development fixes, guarded pages, temporary tokens, PNG references and repeat checks. Replace the placeholders with the exact page and Figma frame; keep credentials out of prompts.
+
 After initialization, open the application in Cursor, reload MCP tools and invoke `/figma-fidelity` with a frame link and target route. The workflow directs the agent to:
 
 1. Read applicable repository instructions, scoped rules and relevant existing skills.
@@ -184,6 +192,8 @@ Capture conditions, reference dimensions and fixture data must be consistent. Fo
 
 | Guide | Contents |
 | --- | --- |
+| [Sample prompts](docs/sample-prompts.md) | Copy-paste QA, development, guarded-page and prepared-page scenarios |
+| [Report showcase](docs/showcase.md) | QA workspace, simple HTML and JSON screenshots with reproduction steps |
 | [Configuration and CLI/MCP reference](docs/configuration.md) | Screens, selectors, styles, capture settings, commands and repair limits |
 | [Figma references](docs/figma-reference.md) | Local PNG exports, official Figma MCP and optional REST snapshots |
 | [Prepared pages](docs/prepared-pages.md) | Compare an existing Playwright page; project-owned startup, tokens and login |
