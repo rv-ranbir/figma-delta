@@ -1,34 +1,32 @@
-# Dashboard showcase
+# Report showcase
 
-These images are captured from an original, static dashboard fixture and a real Figma Delta report. All workspace names, customers, transactions and figures are fictional. The fixture uses a local PNG reference; it does not depend on a live Figma file or claim autonomous AI repair.
+These screenshots show **Figma Delta's generated reports**: the QA workspace, the default simple HTML report, compact JSON output and the JSON for an individual finding. They use real measured results from a fictional fixture with five deliberate CSS differences. No report values are invented.
 
-## Sample reference
+## Interactive QA report
 
-The reference dashboard includes a navigation sidebar, business metrics, revenue chart, acquisition channels and transaction table.
+Review all findings in the sidebar, select an affected element, and compare its expected and actual properties alongside the captured evidence. The selected title finding shows a text-color difference and a font-size difference: `28px` expected, `34px` measured. Colors are normalized to the same extended sRGB format before comparison.
 
-![Original sample dashboard reference with fictional business data](images/dashboard-reference.png)
+The workspace also provides review decisions, severity, notes and developer/agent handoffs. These screenshots leave findings unreviewed; a person decides whether a difference is a defect and assigns its severity.
 
-## Implementation with intentional differences
+![Generated Figma Delta QA workspace showing measured properties, affected-area evidence and review controls](images/qa-workspace.png)
 
-Five deliberate CSS changes give QA and developers concrete findings to inspect:
+## Simple HTML report
 
-| Element | Property | Reference | Implementation |
-| --- | --- | --- | --- |
-| Page title | Text color | `#18283c` | `#7752ad` |
-| Page title | Font size | `28px` | `34px` |
-| Export button | Background color | `#306cfa` | `#172b4d` |
-| Metric strip | Column gap | `24px` | `40px` |
-| Revenue panel | Left padding | `24px` | `36px` |
+The default report lists all findings and puts the relevant JSON next to each one. It avoids embedding screenshots or a large interactive application, making it useful for quick QA triage and agent handoff. Screenshot evidence remains available through links.
 
-The report converts both color representations to the same extended sRGB format before comparing them.
+![Generated simple HTML report with all findings and expected-versus-actual JSON](images/simple-report.png)
 
-![Sample browser implementation with five intentional CSS differences](images/dashboard-implementation.png)
+## Compact JSON output
 
-## Actual QA workspace
+This is the saved `result.json`, displayed in the browser with whitespace formatting for readability. It includes comparison context and failed property checks with selectors, normalized expected/actual values, comparison methods and deltas where available. The image shows the beginning of the file; the complete JSON also contains coverage and artifact paths.
 
-The screenshot shows the generated report with its findings list, expected-versus-actual property values, affected-area evidence, review controls and developer handoff actions. The selected title finding also shows the font-size difference for that same mapped element. These are unreviewed findings; a reviewer decides severity and whether a difference is a defect.
+![Actual compact JSON output containing measured CSS differences and selectors](images/compact-json.png)
 
-![Figma Delta QA report showing measured title-color and font-size differences](images/qa-workspace.png)
+## JSON for one finding
+
+This close-up comes directly from the generated simple report. The title's font size is `28px` in the reference and `34px` in the browser, a `6px` difference. The JSON includes the selector, pixel unit, comparison method and tolerance, ready for a developer or agent to inspect.
+
+![Individual font-size finding with selector, expected 28px, actual 34px and delta 6px in JSON](images/finding-json.png)
 
 ## Reproduce from source
 
@@ -40,10 +38,10 @@ npm run setup
 npm run showcase
 ```
 
-This renders both dashboard variants in Chromium, calls the prepared-page API, verifies all five property findings, and saves these three screenshots under `docs/images/`. It then applies the known fixture correction and verifies a passing comparison against the same pinned reference. The generated interactive report stays under ignored `.demo-project/showcase/`; its path is printed by the command.
+The command renders an original static fixture, captures its local PNG reference, and introduces five known CSS changes: title color, title font size, button background, column gap and left padding. It calls the real prepared-page API to generate the reports, verifies all five property findings, and saves the four report screenshots under `docs/images/`. Finally, it applies the known fixture correction and verifies a pass against the same pinned reference.
 
-The dashboard is a static visual fixture. Export, search and navigation controls are illustrative; it is not a functional analytics product. Screenshot rendering can vary with browser version and platform font rasterization. Use the generator's measured pass/fail assertions rather than treating a committed screenshot as a cross-platform pixel baseline.
+Report HTML, JSON and screenshot evidence stay under ignored `.demo-project/showcase/`; paths are printed by the command. These are original fixture results, not a live Figma import or an autonomous AI repair claim. All fixture data is fictional. The source fixture and charts are original MIT-licensed repository content; Inter comes from the existing `@fontsource/inter` dependency under its included SIL Open Font License.
 
-The fixture and charts are original repository content under the MIT license. Inter is loaded locally from the existing `@fontsource/inter` dependency, under its included SIL Open Font License. No private customer data, third-party dashboard screenshots or externally downloaded design assets are included.
+Browser and font rendering may vary by platform. Committed images illustrate the product; the generator's measured assertions verify the fixture. A passing report covers configured checks, not functional behavior or accessibility.
 
-For your own application, choose a [sample prompt](sample-prompts.md) and supply its actual Figma frame or PNG reference and known mappings.
+For your own application, start with a [sample prompt](sample-prompts.md) and supply its actual Figma frame or PNG reference and known mappings.
