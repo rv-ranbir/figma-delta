@@ -1,0 +1,150 @@
+name: Release
+on:
+  push:
+    tags: ['v[0-9]*.[0-9]*.[0-9]*']
+  workflow_run:
+    workflows: [Native validation]
+    types: [completed]
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  tag:
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Require release credential
+        env:
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: test -n "$RELEASE_TOKEN" || { echo 'Configure RELEASE_TOKEN to create release tags after main CI.' >&2; exit 1; }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          token: ${{ secrets.RELEASE_TOKEN }}
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          check-latest: true
+      - name: Tag a new package version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./package.json').version")"
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]
+          tag="v$version"
+          if git rev-parse "$tag" >/dev/null 2>&1; then
+            echo "$tag already exists; skipping."
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git tag -a "$tag" -m "Release $tag"
+          git push origin "$tag"
+  validate:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          check-latest: true
+          cache: npm
+      - name: Verify release tag and approved main ancestry
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]
+          [[ "${GITHUB_REF_NAME#v}" == "$(node -p "require('./package.json').version")" ]]
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+      - run: npm ci
+      - run: npm audit --audit-level=low
+      - run: npm run setup
+      - run: npm test
+      - run: npm run test:package -- release-artifacts
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: npm-package
+          path: release-artifacts/*.tgz
+          if-no-files-found: error
+          retention-days: 7
+  publish:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          check-latest: true
+          registry-url: https://registry.npmjs.org
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: npm-package
+          path: release-artifacts
+      - name: Publish only the validated tarball
+        shell: bash
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$NODE_AUTH_TOKEN" || { echo 'Configure NPM_TOKEN with publish access to figma-delta.' >&2; exit 1; }
+          version="${GITHUB_REF_NAME#v}"
+          tarball="release-artifacts/figma-delta-$version.tgz"
+          error_file="$(mktemp)"
+          trap 'rm -f "$error_file"' EXIT
+          if remote="$(npm view "figma-delta@$version" dist.shasum --json 2>"$error_file")"; then
+            remote_sha="$(node -e 'const s=JSON.parse(process.argv[1]);if(typeof s!=="string")process.exit(1);process.stdout.write(s)' "$remote")"
+            [[ "$remote_sha" == "$(sha1sum "$tarball" | cut -d ' ' -f 1)" ]] || { echo 'Existing npm version differs from validated artifact.' >&2; exit 1; }
+            echo 'Matching npm artifact already published; skipping.'
+          elif grep -qE 'E404|404 Not Found|is not in this registry' "$error_file"; then
+            channel=latest
+            [[ "$version" != *-* ]] || channel=next
+            npm publish "./$tarball" --access public --provenance --tag "$channel"
+          else
+            cat "$error_file" >&2
+            exit 1
+          fi
+      - name: Create release with installable package
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            assets="$(gh release view "$GITHUB_REF_NAME" --json assets --jq '.assets[].name')"
+            temporary="$(mktemp -d)"
+            trap 'rm -rf "$temporary"' EXIT
+            for tarball in release-artifacts/*.tgz; do
+              filename="$(basename "$tarball")"
+              if printf '%s\n' "$assets" | grep -Fxq "$filename"; then
+                gh release download "$GITHUB_REF_NAME" --pattern "$filename" --dir "$temporary"
+                cmp --silent "$tarball" "$temporary/$filename" || { echo 'Existing GitHub release asset differs from validated artifact.' >&2; exit 1; }
+              else
+                gh release upload "$GITHUB_REF_NAME" "$tarball"
+              fi
+            done
+          else
+            args=(--generate-notes --verify-tag)
+            [[ "$GITHUB_REF_NAME" != *-* ]] || args+=(--prerelease)
+            gh release create "$GITHUB_REF_NAME" "${args[@]}" release-artifacts/*.tgz
+          fi

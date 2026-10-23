@@ -13,7 +13,7 @@ import { compactReport } from './findings.js';
 
 const args=parseArgs({options:{project:{type:'string',default:process.cwd()}}});
 const root=resolveProject(args.values.project);
-const server=new McpServer({name:'figma-fidelity',version:'0.1.2'});
+const server=new McpServer({name:'figma-fidelity',version:'0.1.3'});
 const screen={screen:z.string().regex(/^[a-zA-Z0-9_-]+$/).describe('Configured screen name')};
 const format=z.enum(['simple','html','json']).default('simple').describe('simple (default) writes lightweight HTML and returns compact JSON; json skips HTML; html writes the full QA workspace and returns full data.');
 const reply=(value,compact=false)=>({content:[{type:'text',text:JSON.stringify(value,null,compact?undefined:2)}]});

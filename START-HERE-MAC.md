@@ -1,40 +1,24 @@
 # macOS setup
 
-Native Mac execution is still unverified. This checkout was validated on Windows x64; the CI matrix has been prepared but has not run.
+Install the latest Node.js 24 release (minimum 24.22.1) and Git for your architecture. Open a terminal in the folder where you want to keep the toolkit:
 
-Install the latest Node.js 24 (minimum 24.22.1) for your Mac architecture. Put the toolkit at `~/Projects/figma-toolkit`, with `package.json` directly inside it. Copy source files, not Windows `node_modules` or browser binaries.
-
-```sh
-cd "$HOME/Projects/figma-toolkit"
+```bash
+git clone https://github.com/rv-ranbir/figma-delta.git
+cd figma-delta
 npm ci
 npm run setup
 npm run doctor
-npm test
 npm run demo
 ```
 
-Doctor must launch Chromium and decode a 320×200 screenshot. All 19 tests should pass; the demo should detect the broken layout and pass its corrected layout. Record actual results in VALIDATION.md, including macOS version and Apple Silicon or Intel architecture.
+Install dependencies and Chromium on the Mac itself; do not copy another machine's node_modules or browser binaries. Doctor must launch Chromium and decode a screenshot. The demo should detect the deliberately broken fixture and pass its correction.
 
-To run the supplied live-Figma fixture:
+From the toolkit folder, initialize a running application. Replace `../my-app`, the route and dimensions with your own:
 
-```sh
-npm run sample
+```bash
+node src/cli.js init --project ../my-app --url http://localhost:3000 --width 1440 --height 900
 ```
 
-Open `http://127.0.0.1:4177`. In another terminal in the toolkit directory:
+Follow the [quick start](README.md#quick-start) to provide a reference and element mappings. For Cursor, open the application and reload MCP tools. If you move an initialized project between machines, update its generated MCP command and installation path; init intentionally refuses to overwrite an existing setup.
 
-```sh
-npm run sample:check -- begin
-```
-
-The fresh fixture intentionally has four CSS errors, so this command should return visual failure (exit 1). Follow `examples/figma-sample/README.md` to repair the generated sample, then verify with the same session. A previously repaired sample is preserved between starts.
-
-For a real app, use a native Mac path:
-
-```sh
-node src/cli.js init --project "$HOME/Projects/my-app" --url "http://localhost:3000" --width 1440 --height 900
-```
-
-Open that application in Cursor and reload MCP tools. The generated command uses your Mac's Node and local toolkit path. If moving an initialized app from Windows, edit only its `figma-fidelity` entry in `.cursor/mcp.json` to use the Mac paths; rerunning init intentionally refuses to overwrite existing setup.
-
-Keep Figma PNG dimensions and the configured viewport identical. Cross-platform font rasterization can produce residual pixel differences; never replace the reference or loosen checks during repair to force a pass.
+macOS is covered by native CI. Platform-specific font rasterization can still affect pixel comparisons. Keep the reference and configured checks fixed during repair. See [validation](VALIDATION.md) for scope.

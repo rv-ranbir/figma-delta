@@ -27,3 +27,4 @@ jobs:
       - run: npm run doctor
       - run: npm test
       - run: npm run demo
+      - run: npm run test:package

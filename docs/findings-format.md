@@ -9,7 +9,7 @@ Choose `--format simple` explicitly for this default, `--format json` to skip HT
 Use `--format json` for a compact result, skipping HTML and region-crop generation:
 
 ```powershell
-node src/cli.js check --project D:\Projects\my-app --screen desktop --session <existing-session-id> --format json
+node src/cli.js check --project ../my-app --screen desktop --session "<existing-session-id>" --format json
 ```
 
 For MCP, add `"format": "json"` to `fidelity_verify` arguments. It retains the same session, measurements, checks and capture limit. JSON-only runs keep full measurements in `report.json` / `findings.json` and four full-page evidence images on disk; these are not sent to the agent automatically. Lightweight HTML (`--format simple`) is the default; the full workspace requires `--format html`.
