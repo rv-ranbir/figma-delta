@@ -1,5 +1,7 @@
 # Configuration and command reference
 
+Config files are optional for one-off comparisons. See [per-run comparisons and guarded pages](per-run-comparisons.md) for app URL + Figma/PNG commands, inferred viewport and interactive navigation. Saved screens remain useful for repeatable mapped checks.
+
 Commands below assume an npm installation. From a source checkout, replace `figma-delta` with `node src/cli.js`. Project paths are relative to your current terminal directory.
 
 `fidelity.config.json` lives in the application root, not the toolkit root. Unknown keys, duplicate screen/region names, invalid limits and unsafe screen names are rejected. Each screen uses a separate frame/PNG and viewport; the toolkit does not invent mobile designs.

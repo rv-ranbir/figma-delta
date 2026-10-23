@@ -60,6 +60,10 @@ try{
     const config=JSON.parse(await fs.readFile(path.join(app,'fidelity.config.json'),'utf8'));
     await capture(app,screenSchema.parse(config.screens[0]),path.join(app,'design/reference.png'));
   `,installed,app],consumer);
+  const oneoff=path.join(consumer,'oneoff');await fs.mkdir(oneoff);await fs.copyFile(path.join(app,'design/reference.png'),path.join(oneoff,'frame.png'));
+  const standalone=JSON.parse((await run([cli,'check','--project',oneoff,'--url',`http://127.0.0.1:${server.address().port}`,'--reference','frame.png','--format','json'],consumer)).stdout);
+  assert.equal(standalone.pass,true);assert.ok(standalone.comparison.id);assert.deepEqual(standalone.viewport,{width:320,height:200});assert.equal(standalone.artifacts.report,null);
+  await assert.rejects(()=>fs.access(path.join(oneoff,'fidelity.config.json')));
   const mcp=JSON.parse(await fs.readFile(path.join(app,'.cursor','mcp.json'),'utf8')).mcpServers['figma-fidelity'];
   assert.equal(await fs.realpath(mcp.args[0]),await fs.realpath(path.join(installed,'src','mcp.js')));
   client=new Client({name:'package-consumer',version:'1.0.0'});
@@ -74,7 +78,7 @@ try{
   const saved=JSON.parse(await fs.readFile(path.join(app,'.figma-fidelity/runs/desktop',pointer.runId,'report.json'),'utf8'));
   assert.ok((await fs.readFile(saved.artifacts.report,'utf8')).includes('review-data'));
   color='black';assert.equal(JSON.parse((await run([cli,'check','--project',app,'--screen','desktop'],consumer)).stdout).pass,true);
-  result={package:artifact.filename,files:files.size,consumerAudit:0,cli:true,browser:true,templates:true,mcp:true,regressionDetected:true,correctionPassed:true,cleanup:true};
+  result={package:artifact.filename,files:files.size,consumerAudit:0,cli:true,browser:true,templates:true,mcp:true,noConfigComparison:true,regressionDetected:true,correctionPassed:true,cleanup:true};
 }finally{
   if(client)await client.close();
   if(server)await new Promise(resolve=>server.close(resolve));

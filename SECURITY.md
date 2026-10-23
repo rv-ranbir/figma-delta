@@ -16,4 +16,6 @@ Use the repository's **Security → Report a vulnerability** option for confiden
 
 ## Maintainer checks
 
+Per-run comparisons use ignored `.figma-fidelity/` state. Optional login files contain cookies, localStorage and IndexedDB credentials and are excluded from reports. Share only report run directories, not comparison roots or auth files. Interactive capture requires user navigation/readiness and does not bypass guards or automate login/MFA. The browser is not a sandbox against an untrusted app. Screenshots and captured page URLs can contain private data.
+
 CI uses the latest Node 24 release on Windows, macOS and Linux, audits known dependency vulnerabilities and runs the browser tests. CodeQL scans JavaScript on main, pull requests and weekly. Dependabot checks npm packages and pinned GitHub Actions weekly. These controls reduce risk; they do not prove absence of vulnerabilities. Main requires passing checks, including for administrators. A PR-approval ruleset requires review for other contributors and permits repository admins to merge their own PRs without an independent approval. The admin exception applies through pull requests; CI, force-push and deletion protections remain enforced.

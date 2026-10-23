@@ -25,12 +25,16 @@ async function api(endpoint,token,fetcher){
   if(!response.ok)throw Error(`Figma API HTTP ${response.status}${response.status===429?' (rate limited; retry after '+(response.headers.get('retry-after')??'the reset')+')':''}`);
   const data=await response.json();if(data.err)throw Error('Figma export failed');return data;
 }
-export async function syncFigma(root,screen,{fetcher=fetch,token=process.env.FIGMA_ACCESS_TOKEN}={}){
-  if(!screen.figmaUrl)throw Error('Set figmaUrl for this screen, or use a local reference PNG');
+export async function getFigmaFrame(figmaUrl,{fetcher=fetch,token=process.env.FIGMA_ACCESS_TOKEN}={}){
+  const {key,nodeId}=parseFigmaUrl(figmaUrl);
   if(!token)throw Error('Set FIGMA_ACCESS_TOKEN with file_content:read, or export a local reference PNG. Never put tokens in config.');
-  const {key,nodeId}=parseFigmaUrl(screen.figmaUrl);
   const data=await api(`files/${key}/nodes?ids=${encodeURIComponent(nodeId)}`,token,fetcher);
   const node=data.nodes?.[nodeId]?.document;if(!node?.absoluteBoundingBox)throw Error('Figma frame not found or has no bounding box');
+  return {key,nodeId,data,node};
+}
+export async function syncFigma(root,screen,{fetcher=fetch,token=process.env.FIGMA_ACCESS_TOKEN,frame}={}){
+  if(!screen.figmaUrl)throw Error('Set figmaUrl for this screen, or use a local reference PNG');
+  const {key,nodeId,data,node}=frame??await getFigmaFrame(screen.figmaUrl,{fetcher,token});
   const box=node.absoluteBoundingBox;
   if(Math.abs(box.width-screen.viewport.width)>0.01||Math.abs(box.height-screen.viewport.height)>0.01)throw Error(`Frame is ${box.width}×${box.height}; config viewport is ${screen.viewport.width}×${screen.viewport.height}. Match them before syncing.`);
   const image=await api(`images/${key}?ids=${encodeURIComponent(nodeId)}&format=png&scale=1&use_absolute_bounds=true`,token,fetcher);
