@@ -2,7 +2,7 @@
 
 ## Source archive and local pilot
 
-Use a versioned source ZIP for the first users. It provides the CLI, Cursor MCP integration, QA report renderer, templates, tests and small demo without requiring a public service or registry account. It remains an early release: Windows x64 has local validation; native macOS/Linux validation and broader real-application pilots still need evidence.
+Use a versioned source ZIP for the first users. It provides the CLI, Cursor MCP integration, QA report renderer, templates, tests and small demo without requiring a public service or registry account. It remains an early release: Windows, macOS and Linux have passing native CI results; broader real-application pilots remain important.
 
 On Windows, maintainers run:
 
@@ -30,9 +30,9 @@ Share through your team's file-delivery channel. The checksum detects transfer c
 Example from the extracted toolkit folder:
 
 ```powershell
-node src/cli.js init --project "D:\Projects\my-app" --url "http://localhost:3000/dashboard" --width 1440 --height 900
+node src/cli.js init --project ../my-app --url "http://localhost:3000/dashboard" --width 1440 --height 900
 # Supply the reference and mappings before checking.
-node src/cli.js check --project "D:\Projects\my-app" --screen desktop --format html
+node src/cli.js check --project ../my-app --screen desktop --format html
 ```
 
 The check prints artifact paths. Open `report.html` in the resulting run folder. Use `--format simple` for the small static report or `--format json` for automation. Exit codes are 0 for configured checks passing, 1 for measured failures and 2 for execution/setup errors. CLI checks work without Cursor; source repair requires a developer or agent.
@@ -62,7 +62,7 @@ For each pilot, collect installation success, mapping effort, useful versus fals
 
 ## npm release setup
 
-This follows the release pattern from secondpair. The package uses an explicit `files` allowlist; browser downloads are an explicit CLI setup command. Dependencies are not copied from the maintainer's installed node_modules. The consumer test verifies a real packed installation with no install scripts, its dependency audit, both npm CLI resolution and direct CLI execution, browser setup/health, template installation, generated MCP startup and an end-to-end visual regression/correction.
+The release workflow validates the package before publication. The package uses an explicit `files` allowlist; browser downloads are an explicit CLI setup command. Dependencies are not copied from the maintainer's installed node_modules. The consumer test verifies a real packed installation with no install scripts, its dependency audit, both npm CLI resolution and direct CLI execution, browser setup/health, template installation, generated MCP startup and an end-to-end visual regression/correction.
 
 Configure these repository Actions secrets before merging the first npm release PR:
 

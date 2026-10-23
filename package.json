@@ -56,6 +56,10 @@
     "docs/findings-format.md",
     "docs/distribution.md",
     "SECURITY.md",
-    "LICENSE"
+    "LICENSE",
+    "docs/configuration.md",
+    "docs/figma-reference.md",
+    "CONTRIBUTING.md",
+    "VALIDATION.md"
   ]
 }

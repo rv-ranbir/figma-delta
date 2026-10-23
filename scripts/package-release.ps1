@@ -11,8 +11,9 @@ $payload = Join-Path $stage 'figma-toolkit'
 New-Item -ItemType Directory -Path $payload -Force | Out-Null
 try {
     # Explicit allowlist: never copy the checkout, local projects or installed dependencies wholesale.
-    $entries = @('src', 'templates', 'scripts', 'examples', 'test', 'docs',
-        'package.json', 'package-lock.json', '.npmrc', '.nvmrc', 'README.md', 'SECURITY.md', 'LICENSE', 'START-HERE-WINDOWS.md',
+    $entries = @('src', 'templates', 'scripts', 'examples', 'test',
+        'docs/configuration.md', 'docs/figma-reference.md', 'docs/findings-format.md', 'docs/distribution.md',
+        'package.json', 'package-lock.json', '.npmrc', '.nvmrc', 'README.md', 'CONTRIBUTING.md', 'SECURITY.md', 'LICENSE', 'START-HERE-WINDOWS.md',
         'START-HERE-MAC.md', 'VALIDATION.md', 'CURSOR-BENCHMARK.md', '.gitignore')
     foreach ($entry in $entries) {
         $source = Join-Path $toolkitRoot $entry
@@ -20,7 +21,9 @@ try {
         if ($items | Where-Object { $_.Attributes -band [IO.FileAttributes]::ReparsePoint }) {
             throw "Release input contains a link: $entry"
         }
-        Copy-Item -LiteralPath $source -Destination $payload -Recurse
+        $destination = Join-Path $payload $entry
+        New-Item -ItemType Directory -Path (Split-Path -Parent $destination) -Force | Out-Null
+        Copy-Item -LiteralPath $source -Destination $destination -Recurse
     }
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     Add-Type -AssemblyName System.IO.Compression

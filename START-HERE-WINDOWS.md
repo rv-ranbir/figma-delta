@@ -1,28 +1,24 @@
-# Start here
+# Windows setup
 
-Extract the archive so the toolkit is at **D:\Projects\figma-toolkit**.
-
-In PowerShell:
+Install the latest Node.js 24 release (minimum 24.22.1) and Git. Open PowerShell in the folder where you want to keep the toolkit:
 
 ```powershell
-Set-Location D:\Projects\figma-toolkit
+git clone https://github.com/rv-ranbir/figma-delta.git
+cd figma-delta
 npm ci
 npm run setup
 npm run doctor
-npm test
 npm run demo
 ```
 
-The demo prints HTML report paths. Open the before/after reports to see deliberate layout errors detected and the corrected fixture pass.
+The demo prints before/after report locations. Its deliberate layout errors should fail, and the known fixture correction should pass.
 
-To attach to your real application, replace the example path below:
+From the toolkit folder, initialize a running application. Replace `../my-app`, the route and dimensions with your own:
 
 ```powershell
-node .\src\cli.js init --project "D:\Projects\my-react-app" --url "http://localhost:3000" --width 1440 --height 900
+node src/cli.js init --project ../my-app --url http://localhost:3000 --width 1440 --height 900
 ```
 
-Open that application in Cursor. Connect the official Figma plugin/MCP once, then invoke `/figma-fidelity` with a frame link and target route. Cursor can fill the config, obtain the reference, implement and run the bounded repair loop. Read README.md for the two reference routes and exact node-to-selector checks.
+Supply the reference and mappings described in the [quick start](README.md#quick-start). Open the application in Cursor and reload MCP tools if you want agent-assisted implementation. CLI verification works without Cursor.
 
-The toolkit captures, compares and reports; Cursor edits your source code. It needs access to the Figma reference and the running app. Your existing Cursor tool permissions still apply.
-
-The local checkout at this path has been validated on Windows x64. Run `npm run sample` to start the supplied Figma-backed test application at `http://127.0.0.1:4177`; see `examples/figma-sample/README.md` for the edit/verify exercise. Validation details and remaining Mac/Cursor checks are in VALIDATION.md.
+Windows is covered by native CI. See [validation](VALIDATION.md) and [configuration](docs/configuration.md) for coverage and options.
