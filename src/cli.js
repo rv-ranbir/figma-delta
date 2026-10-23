@@ -18,7 +18,7 @@ try{
  const {values:v,positionals}=parseArgs({allowPositionals:true,options:{project:{...string,default:process.cwd()},screen:string,url:string,figma:string,reference:string,width:string,height:string,session:string,comparison:string,mappings:string,ready:string,'storage-state':string,interactive:{type:'boolean'},'save-login':{type:'boolean'},format:{...string,default:'simple'},help:{type:'boolean'}}});
  if(!['simple','html','json'].includes(v.format))throw Error('--format must be simple, html or json');
  const command=positionals[0];const project=resolveProject(v.project);
- if(v.help||!command){console.log(`Figma Delta 0.2.0 (Node 24 >=24.22.1)
+ if(v.help||!command){console.log(`Figma Delta 0.2.1 (Node 24 >=24.22.1)
 
 figma-delta setup  # install Chromium
 figma-delta doctor # check browser/runtime

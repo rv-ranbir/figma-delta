@@ -16,7 +16,7 @@ import {redactUrls} from './privacy.js';
 
 const args=parseArgs({options:{project:{type:'string',default:process.cwd()}}});
 const root=resolveProject(args.values.project);
-const server=new McpServer({name:'figma-fidelity',version:'0.2.0'});
+const server=new McpServer({name:'figma-fidelity',version:'0.2.1'});
 const browsers=new Map();
 const scope={comparisonId:z.string().uuid().optional().describe('Per-run comparison returned by fidelity_prepare; omit for existing configured screens')};
 const screen={...scope,screen:z.string().regex(/^[a-zA-Z0-9_-]+$/).default('desktop').describe('Configured screen name; per-run comparisons use desktop')};

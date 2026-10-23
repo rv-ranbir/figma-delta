@@ -1,6 +1,6 @@
 {
   "name": "figma-delta",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Figma design comparison for QA, developers and AI agents",
   "type": "module",
   "main": "./src/api.js",
@@ -20,6 +20,7 @@
     "sample:check": "node examples/check-sample.js",
     "test": "node --test --test-concurrency=1 test/*.test.js",
     "demo": "node examples/demo.js",
+    "showcase": "node examples/showcase.js",
     "mcp": "node src/mcp.js",
     "test:unit": "node --test test/core.test.js test/mcp.test.js test/paths.test.js",
     "test:package": "node scripts/verify-package.js"
@@ -61,6 +62,9 @@
     "docs/configuration.md",
     "docs/per-run-comparisons.md",
     "docs/prepared-pages.md",
+    "docs/sample-prompts.md",
+    "docs/showcase.md",
+    "docs/images",
     "docs/figma-reference.md",
     "CONTRIBUTING.md",
     "VALIDATION.md"
