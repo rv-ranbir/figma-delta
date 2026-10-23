@@ -17,17 +17,19 @@ export async function openCapturePage(root,screen,{headless=true}={}){
     return {browser,page};
   }catch(error){await browser.close();throw error;}
 }
-export async function capture(root,screen,output,{page:livePage}={}){
+export async function capture(root,screen,output,{page:livePage,passive=false}={}){
   if(livePage?.isClosed())throw Error('Interactive page was closed. Reopen the comparison browser and navigate to the required state.');
-  if(livePage){const size=livePage.viewportSize();if(size?.width!==screen.viewport.width||size?.height!==screen.viewport.height)throw Error('Interactive viewport must match the pinned reference dimensions');}
+  if(passive&&!livePage)throw Error('Passive capture requires a caller-owned page');
+  if(livePage){const size=livePage.viewportSize()??(passive?await livePage.evaluate(()=>({width:innerWidth,height:innerHeight})):null);if(size?.width!==screen.viewport.width||size?.height!==screen.viewport.height)throw Object.assign(Error('Page viewport must match the pinned reference dimensions'),{code:'VIEWPORT_MISMATCH'});}
+  if(passive&&screen.captureSelector)throw Object.assign(Error('Prepared pages support viewport capture only; element capture may scroll the page'),{code:'UNSUPPORTED_PAGE'});
   const owned=livePage?null:await openCapturePage(root,screen);
-  const page=livePage??owned.page;const tracked=pageErrors.get(page);const errors=tracked??[];const onError=e=>errors.push(e.message);
+  const page=livePage??owned.page;const tracked=passive?undefined:pageErrors.get(page);const errors=tracked??[];const onError=e=>errors.push(e.message);
   if(!tracked)page.on('pageerror',onError);
   let motionStyle;
   try{
-    await page.locator(screen.readySelector).waitFor({state:'visible'});
+    await page.locator(screen.readySelector).waitFor({state:'visible',timeout:screen.timeoutMs});
     // Disable motion before measurements as well as during screenshots.
-    motionStyle=await page.addStyleTag({content:'*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important;scroll-behavior:auto!important}'});
+    if(!passive)motionStyle=await page.addStyleTag({content:'*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important;scroll-behavior:auto!important}'});
     let deadline;
     try{await Promise.race([page.evaluate(async resetScroll=>{await document.fonts.ready;await Promise.all([...document.images].map(i=>i.decode().catch(()=>{})));if(resetScroll)window.scrollTo(0,0);},!livePage),new Promise((_,reject)=>{deadline=setTimeout(()=>reject(Error('Fonts/images did not settle before timeoutMs')),screen.timeoutMs);})]);}finally{clearTimeout(deadline);}
     const fonts=await page.evaluate(list=>list.map(f=>({family:f,loaded:[...document.fonts].some(face=>face.family.replace(/["']/g,'')===f&&face.status==='loaded')})),screen.requiredFonts);
@@ -53,8 +55,9 @@ export async function capture(root,screen,output,{page:livePage}={}){
       measures.push({name:region.name,selector:region.selector,...value});
     }
     const brokenImages=await page.evaluate(()=>[...document.images].filter(i=>!i.complete||i.naturalWidth===0).map(i=>({src:i.currentSrc,alt:i.alt})));
-    const options={path:output,animations:'disabled',caret:'hide',scale:'css',timeout:screen.timeoutMs};
+    const options={path:output,animations:passive?'allow':'disabled',caret:passive?'initial':'hide',scale:'css',timeout:screen.timeoutMs};
     if(target)await target.screenshot(options);else await page.screenshot({...options,fullPage:false});
-    return {measures,fonts,brokenImages,errors:tracked?tracked.splice(0):errors,browserVersion:page.context().browser().version(),capturedAt:new Date().toISOString(),url:page.url(),entryUrl:screen.url};
+    const environment=passive?await page.evaluate(()=>({locale:navigator.language,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone,colorScheme:matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light',deviceScaleFactor:devicePixelRatio})):undefined;
+    return {measures,fonts,brokenImages,errors:tracked?tracked.splice(0):errors,browserVersion:page.context().browser()?.version()??'unavailable',capturedAt:new Date().toISOString(),url:page.url(),entryUrl:screen.url,...(environment?{environment}:{})};
   }finally{if(livePage&&motionStyle)await motionStyle.evaluate(el=>el.remove()).catch(()=>{});if(!tracked)page.off('pageerror',onError);if(owned)await owned.browser.close();}
 }

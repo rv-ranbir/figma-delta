@@ -3,6 +3,7 @@
   "version": "0.2.0",
   "description": "Figma design comparison for QA, developers and AI agents",
   "type": "module",
+  "main": "./src/api.js",
   "engines": {
     "node": ">=24.22.1 <25"
   },
@@ -59,6 +60,7 @@
     "LICENSE",
     "docs/configuration.md",
     "docs/per-run-comparisons.md",
+    "docs/prepared-pages.md",
     "docs/figma-reference.md",
     "CONTRIBUTING.md",
     "VALIDATION.md"

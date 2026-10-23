@@ -12,6 +12,7 @@ import {resolveProject} from './paths.js';
 import {compactReport} from './findings.js';
 import {comparisonInput,prepareComparison,resolveComparison,requireInteractive,saveLogin} from './comparison.js';
 import {openCapturePage} from './capture.js';
+import {redactUrls} from './privacy.js';
 
 const args=parseArgs({options:{project:{type:'string',default:process.cwd()}}});
 const root=resolveProject(args.values.project);
@@ -20,8 +21,8 @@ const browsers=new Map();
 const scope={comparisonId:z.string().uuid().optional().describe('Per-run comparison returned by fidelity_prepare; omit for existing configured screens')};
 const screen={...scope,screen:z.string().regex(/^[a-zA-Z0-9_-]+$/).default('desktop').describe('Configured screen name; per-run comparisons use desktop')};
 const format=z.enum(['simple','html','json']).default('simple').describe('simple writes lightweight HTML and returns compact JSON; json skips HTML; html writes full QA workspace and returns full data.');
-const reply=(value,compact=false)=>({content:[{type:'text',text:JSON.stringify(value,null,compact?undefined:2)}]});
-const guard=fn=>async args=>{try{return await fn(args);}catch(e){return {isError:true,content:[{type:'text',text:e.message}]};}};
+const reply=(value,compact=false)=>({content:[{type:'text',text:JSON.stringify(redactUrls(value),null,compact?undefined:2)}]});
+const guard=fn=>async args=>{try{return await fn(args);}catch(e){return {isError:true,content:[{type:'text',text:redactUrls(e.message)}]};}};
 async function target(args){if(!args.comparisonId)return {root};const comparison=await resolveComparison(root,args.comparisonId);return {root:comparison.root,comparison,live:browsers.get(args.comparisonId)};}
 const details=comparison=>comparison?{id:comparison.comparisonId,entryUrl:comparison.entryUrl,design:comparison.design}:undefined;
 server.registerTool('fidelity_prepare',{

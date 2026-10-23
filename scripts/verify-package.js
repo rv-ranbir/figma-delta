@@ -29,7 +29,7 @@ try{
   const packed=JSON.parse((await npm(['pack','--json','--pack-destination',output],root)).stdout);
   const artifact=Array.isArray(packed)?packed[0]:Object.values(packed)[0];
   const files=new Set(artifact.files.map(file=>file.path));
-  for(const file of ['src/cli.js','src/mcp.js','src/report.css','src/report-client.js','templates/SKILL.md','templates/figma-fidelity.mdc','scripts/setup.js','scripts/doctor.js','LICENSE'])assert.ok(files.has(file),`Missing packaged ${file}`);
+  for(const file of ['src/api.js','src/privacy.js','docs/prepared-pages.md','src/cli.js','src/mcp.js','src/report.css','src/report-client.js','templates/SKILL.md','templates/figma-fidelity.mdc','scripts/setup.js','scripts/doctor.js','LICENSE'])assert.ok(files.has(file),`Missing packaged ${file}`);
   for(const file of files)assert.ok(!/^(?:test|examples|node_modules|\.tools|\.cursor-benchmark|\.github)\//.test(file)&&!/(?:^|\/)(?:\.env(?:\..*)?|fidelity\.auth\.json|FIGMA-TOOLKIT-PROJECT-HANDOFF\.md)$/.test(file),`Unexpected packaged ${file}`);
   const tarball=path.join(output,artifact.filename);
   const consumer=path.join(temporary,'consumer');await fs.mkdir(consumer);
@@ -64,6 +64,21 @@ try{
   const standalone=JSON.parse((await run([cli,'check','--project',oneoff,'--url',`http://127.0.0.1:${server.address().port}`,'--reference','frame.png','--format','json'],consumer)).stdout);
   assert.equal(standalone.pass,true);assert.ok(standalone.comparison.id);assert.deepEqual(standalone.viewport,{width:320,height:200});assert.equal(standalone.artifacts.report,null);
   await assert.rejects(()=>fs.access(path.join(oneoff,'fidelity.config.json')));
+  await run(['--input-type=module','-e',`
+    import assert from 'node:assert/strict';
+    import {checkPreparedPage} from 'figma-delta';
+    import {chromium} from 'playwright';
+    const [project,url]=process.argv.slice(1);
+    const browser=await chromium.launch();
+    try {
+      const page=await browser.newPage({viewport:{width:320,height:200}});
+      await page.goto(url+'/?ticket=PRIVATE_TOKEN');
+      const result=await checkPreparedPage({project,page,reference:'frame.png',readiness:{confirmed:true,selector:'#title'},format:'json'});
+      assert.equal(result.status,'complete');assert.equal(result.report.pass,true);
+      assert.equal(JSON.stringify(result).includes('PRIVATE_TOKEN'),false);
+      assert.equal(page.isClosed(),false);assert.ok(page.url().includes('PRIVATE_TOKEN'));
+    } finally {await browser.close();}
+  `,oneoff,`http://127.0.0.1:${server.address().port}`],consumer);
   const mcp=JSON.parse(await fs.readFile(path.join(app,'.cursor','mcp.json'),'utf8')).mcpServers['figma-fidelity'];
   assert.equal(await fs.realpath(mcp.args[0]),await fs.realpath(path.join(installed,'src','mcp.js')));
   client=new Client({name:'package-consumer',version:'1.0.0'});
@@ -78,7 +93,7 @@ try{
   const saved=JSON.parse(await fs.readFile(path.join(app,'.figma-fidelity/runs/desktop',pointer.runId,'report.json'),'utf8'));
   assert.ok((await fs.readFile(saved.artifacts.report,'utf8')).includes('review-data'));
   color='black';assert.equal(JSON.parse((await run([cli,'check','--project',app,'--screen','desktop'],consumer)).stdout).pass,true);
-  result={package:artifact.filename,files:files.size,consumerAudit:0,cli:true,browser:true,templates:true,mcp:true,noConfigComparison:true,regressionDetected:true,correctionPassed:true,cleanup:true};
+  result={package:artifact.filename,files:files.size,consumerAudit:0,cli:true,browser:true,templates:true,mcp:true,noConfigComparison:true,preparedPageApi:true,regressionDetected:true,correctionPassed:true,cleanup:true};
 }finally{
   if(client)await client.close();
   if(server)await new Promise(resolve=>server.close(resolve));

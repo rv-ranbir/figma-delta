@@ -12,8 +12,10 @@ async function fixture(t){const root=await fs.mkdtemp(path.join(os.tmpdir(),'del
 
 test('CLI prepares an isolated comparison from a URL and PNG without init or a config file',async t=>{
  const root=await fixture(t);
- const result=await promisify(execFile)(process.execPath,[cli,'prepare','--project',root,'--url','http://localhost:3000/settings','--reference','frame.png']);
+ const result=await promisify(execFile)(process.execPath,[cli,'prepare','--project',root,'--url','http://localhost:3000/settings?token=SECRET','--reference','frame.png']);
+ assert.equal(result.stdout.includes('SECRET'),false);
  const prepared=JSON.parse(result.stdout);assert.match(prepared.comparisonId,/^[a-f0-9-]{36}$/);assert.deepEqual(prepared.viewport,{width:320,height:200});
+ assert.equal((await fs.readFile(path.join(prepared.root,'fidelity.config.json'),'utf8')).includes('SECRET'),true);
  await assert.rejects(()=>fs.access(path.join(root,'fidelity.config.json')));assert.match(await fs.readFile(path.join(root,'.figma-fidelity','.gitignore'),'utf8'),/\*/);
 });
 

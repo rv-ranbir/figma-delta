@@ -13,11 +13,12 @@ const server=fileURLToPath(new URL('../src/mcp.js',import.meta.url));
 
 test('real MCP stdio handshake, discover tools, read project, error handling',async t=>{
  const root=await fs.mkdtemp(path.join(os.tmpdir(),'fidelity MCP 测试-'));
- t.after(()=>fs.rm(root,{recursive:true,force:true}));await install(root);
+ t.after(()=>fs.rm(root,{recursive:true,force:true}));await install(root,{url:'http://localhost:3000/?token=SECRET'});
  const transport=new StdioClientTransport({command:process.execPath,args:[server,'--project',root],stderr:'pipe'});
  const client=new Client({name:'fidelity-test',version:'1.0.0'});await client.connect(transport);t.after(()=>client.close());
  const {tools}=await client.listTools();assert.equal(tools.length,8);assert.ok(tools.some(t=>t.name==='fidelity_verify'));
  const r=await client.callTool({name:'fidelity_project',arguments:{}});assert.equal(JSON.parse(r.content[0].text).project,root);
+ assert.equal(r.content[0].text.includes('SECRET'),false);assert.equal((await fs.readFile(path.join(root,'fidelity.config.json'),'utf8')).includes('SECRET'),true);
  const bad=await client.callTool({name:'fidelity_design',arguments:{screen:'unknown'}});assert.equal(bad.isError,true);assert.match(bad.content[0].text,/Unknown screen/);
  const missing=await client.callTool({name:'fidelity_sync',arguments:{screen:'desktop'}});assert.equal(missing.isError,true);assert.match(missing.content[0].text,/figmaUrl/);
  await fs.mkdir(path.join(root,'design'),{recursive:true});

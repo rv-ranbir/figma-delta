@@ -87,6 +87,10 @@ Optional `--save-login` saves local cookies, localStorage and IndexedDB under ig
 
 In Cursor, ask: **“Compare this Figma frame with this app URL. QA only; open an interactive browser so I can reach the target screen.”** The skill uses `fidelity_prepare`, waits for your readiness confirmation, then captures the live page. Enable the project MCP in Cursor's Customize → MCPs if disabled.
 
+### Project-prepared browser pages
+
+If your project needs temporary tokens, custom startup or an existing authenticated browser, keep that preparation in your own Playwright code. Pass its ready `page` to `checkPreparedPage()`; Delta measures in place and returns the same reports. See [prepared-page integration](docs/prepared-pages.md) for the short example and readiness contract.
+
 ### Saved screen configurations (optional)
 
 The following commands run from the source checkout. Replace `../my-app` with your application's folder and use its actual route and reference dimensions. Start the application using its own development or preview command.
@@ -182,6 +186,7 @@ Capture conditions, reference dimensions and fixture data must be consistent. Fo
 | --- | --- |
 | [Configuration and CLI/MCP reference](docs/configuration.md) | Screens, selectors, styles, capture settings, commands and repair limits |
 | [Figma references](docs/figma-reference.md) | Local PNG exports, official Figma MCP and optional REST snapshots |
+| [Prepared pages](docs/prepared-pages.md) | Compare an existing Playwright page; project-owned startup, tokens and login |
 | [Findings and JSON](docs/findings-format.md) | Expected/actual values, evidence, color normalization and QA review |
 | [Validation](VALIDATION.md) | Platform coverage, packaged-consumer checks and benchmark limitations |
 | [Contributing](CONTRIBUTING.md) | Development setup, checks and pull requests |

@@ -10,6 +10,8 @@ import {install} from './install.js';
 import {compactReport} from './findings.js';
 import {prepareComparison,resolveComparison,requireInteractive,projectFile,saveLogin} from './comparison.js';
 import {openCapturePage} from './capture.js';
+import {redactUrls} from './privacy.js';
+const json=(value,...format)=>JSON.stringify(redactUrls(value),...format);
 const string={type:'string'};
 let interactiveBrowser;
 try{
@@ -42,7 +44,7 @@ figma-delta check --project <app> --screen desktop [--session <id>] [--format si
 check exits 0 on pass, 1 on mismatches, 2 on setup/runtime errors. Start your app separately. MCP: node src/mcp.js --project <app>.`);}
  else if(command==='setup')await import('../scripts/setup.js');
  else if(command==='doctor')await import('../scripts/doctor.js');
- else if(command==='init')console.log(JSON.stringify(await install(project,{url:v.url,figmaUrl:v.figma,...(v.width?{width:Number(v.width)}:{}),...(v.height?{height:Number(v.height)}:{})}),null,2));
+ else if(command==='init')console.log(json(await install(project,{url:v.url,figmaUrl:v.figma,...(v.width?{width:Number(v.width)}:{}),...(v.height?{height:Number(v.height)}:{})}),null,2));
  else{
   if(!['prepare','begin','sync','check'].includes(command))throw Error('Unknown command: '+command);
   if(v.interactive&&command!=='check')throw Error('--interactive is supported by check; use prepare to pin a reference without opening a browser');
@@ -59,21 +61,21 @@ check exits 0 on pass, 1 on mismatches, 2 on setup/runtime errors. Start your ap
    const regions=v.mappings?JSON.parse(await fs.readFile(projectFile(project,v.mappings),'utf8')):[];
    comparison=await prepareComparison(project,{url:v.url,figmaUrl:v.figma,reference:v.reference,width:v.width?Number(v.width):undefined,height:v.height?Number(v.height):undefined,readySelector:v.ready,regions,storageState:v['storage-state'],interactive:!!v.interactive});
   }
-  if(command==='prepare'){if(!comparison)throw Error('Provide an application URL and Figma frame or PNG');console.log(JSON.stringify(comparison));}
+  if(command==='prepare'){if(!comparison)throw Error('Provide an application URL and Figma frame or PNG');console.log(json(comparison));}
   else{
    const root=comparison?.root??project;const config=await loadConfig(root);
    const screens=v.screen?[selectScreen(config,v.screen)]:config.screens;
    if(command==='begin'){
-    if(!v.screen&&!comparison)throw Error('begin requires --screen');console.log(JSON.stringify(await beginSession(root,v.screen??'desktop'),null,2));
+    if(!v.screen&&!comparison)throw Error('begin requires --screen');console.log(json(await beginSession(root,v.screen??'desktop'),null,2));
    }else if(command==='sync'){
     if(comparison)throw Error('Comparison references are pinned. Prepare a new comparison to refresh the design.');
-    for(const screen of screens)console.log(JSON.stringify(await withLock(root,()=>syncFigma(root,screen)),null,2));
+    for(const screen of screens)console.log(json(await withLock(root,()=>syncFigma(root,screen)),null,2));
    }else{
     if(v.session&&!v.screen&&!comparison)throw Error('--session requires --screen');
     if(comparison?.interactive&&!v.interactive)throw Error('This comparison requires --interactive to navigate back to its guarded page state. Login state alone cannot restore a wizard.');
     if(v.interactive&&screens.length!==1)throw Error('--interactive requires one screen; select it with --screen');
     for(const screen of screens){
-     if(comparison)console.error(`Comparison ${comparison.comparisonId}: ${comparison.design.frameName??comparison.design.figmaUrl??'local PNG'} · ${screen.viewport.width} × ${screen.viewport.height} · entry ${screen.url}`);
+     if(comparison)console.error(redactUrls(`Comparison ${comparison.comparisonId}: ${comparison.design.frameName??comparison.design.figmaUrl??'local PNG'} · ${screen.viewport.width} × ${screen.viewport.height} · entry ${screen.url}`));
      let page;
      if(v.interactive){if(comparison)await requireInteractive(project,comparison.comparisonId);const opened=await openCapturePage(root,screen,{headless:false});interactiveBrowser=opened.browser;page=opened.page;
       const terminal=createInterface({input:process.stdin,output:process.stderr});const abort=new AbortController();const cancel=()=>abort.abort();
@@ -81,14 +83,14 @@ check exits 0 on pass, 1 on mismatches, 2 on setup/runtime errors. Start your ap
       try{await terminal.question('Navigate this browser to the required page/state, then press Enter here to capture. Ctrl+C cancels.\n',{signal:abort.signal});}
       finally{process.off('SIGINT',cancel);process.off('SIGTERM',cancel);terminal.close();}
       if(page.isClosed())throw Error('Interactive browser was closed before capture');
-      if(v['save-login'])console.error(JSON.stringify(await saveLogin(project,page)));
+      if(v['save-login'])console.error(json(await saveLogin(project,page)));
      }
      const details=comparison?{id:comparison.comparisonId,entryUrl:comparison.entryUrl,design:comparison.design}:undefined;
      const report=await verify(root,screen.name,{sessionId:v.session,format:v.format,page,comparison:details});
-     console.log(JSON.stringify(v.format!=='html'?compactReport(report):report,null,v.format!=='html'?undefined:2));if(!report.pass)process.exitCode=1;
+     console.log(json(v.format!=='html'?compactReport(report):report,null,v.format!=='html'?undefined:2));if(!report.pass)process.exitCode=1;
     }
    }
   }
  }
-}catch(error){console.error(error.message);process.exitCode=2;}
+}catch(error){console.error(redactUrls(error.message));process.exitCode=2;}
 finally{if(interactiveBrowser)await interactiveBrowser.close();}
