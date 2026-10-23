@@ -10,6 +10,7 @@ import { writeFindings, compactReport } from './findings.js';
 import { compareStyle } from './properties.js';
 import { writeSimpleReport } from './simple-report.js';
 import { normalizeStyles, isColorProperty, COLOR_FORMAT } from './colors.js';
+import { redactUrls } from './privacy.js';
 
 export async function referencePath(root,screen){
   if(screen.figmaUrl)return path.join(snapshotDir(root,screen.name),'reference.png');
@@ -64,7 +65,7 @@ export async function beginSession(root,name){return withLock(root,async()=>{
   await writeJson(inside(stateDir(root),'sessions',name+'.json'),session);
   return session;
 });}
-export async function verify(root,name,{sessionId,format='simple'}={}){return withLock(root,async()=>{
+export async function verify(root,name,{sessionId,format='simple',page,comparison,captureFn=capture}={}){return withLock(root,async()=>{
   if(!['simple','html','json'].includes(format))throw Error('format must be simple, html or json');
   const config=await loadConfig(root);const screen=selectScreen(config,name);
   let session;
@@ -79,7 +80,7 @@ export async function verify(root,name,{sessionId,format='simple'}={}){return wi
   const expectations=screen.regions.map(r=>regionExpectations(r,manifest));
   const runId=new Date().toISOString().replace(/[:.]/g,'-')+'-'+crypto.randomUUID().slice(0,8);
   const dir=inside(stateDir(root),'runs',name,runId);await fs.mkdir(dir,{recursive:true});
-  const captured=await capture(root,screen,path.join(dir,'actual.png'));
+  const captured=await captureFn(root,screen,path.join(dir,'actual.png'),{page});
   for(const measure of captured.measures)if(measure.styles)Object.assign(measure,normalizeStyles(measure.styles));
   await fs.copyFile(reference,path.join(dir,'reference.png'));
   const pixels=await compare(path.join(dir,'reference.png'),path.join(dir,'actual.png'),dir,{threshold:screen.pixelThreshold,masks:screen.masks});
@@ -109,10 +110,10 @@ export async function verify(root,name,{sessionId,format='simple'}={}){return wi
     sessionResult={id:session.id,iteration:session.history.length,maxIterations:session.maxIterations,status:session.status,bestRun:session.best.runId,
       nextAction:pass?'Complete: report configured checks and remaining coverage limits.':session.status==='active'?'Inspect images and fix the largest evidenced root cause, then verify with this sessionId.':'STOP: retain reports and summarize unresolved issues. Review your checkpoint before reverting only your own edits.'};
   }
-  const report={version:1,colorFormat:COLOR_FORMAT,runId,screen:name,url:screen.url,viewport:screen.viewport,pass,pixels,regions,issues,...captured,session:sessionResult,
+  const report=redactUrls({version:1,colorFormat:COLOR_FORMAT,runId,screen:name,url:screen.url,viewport:screen.viewport,pass,pixels,regions,issues,...captured,session:sessionResult,...(comparison?{comparison}:{ }),
     coverage:{geometryRegions:screen.regions.filter((_,i)=>expectations[i].rect).length,styleRegions:expectations.filter(e=>Object.keys(e.styles).length).length,
-      note:'Pass applies only to configured checks. No accessibility audit, functional suite, semantic source-asset verification, or inferred responsive design.'}};
-  const findingDocument=await writeFindings(dir,report,screen,{cropImages:format==='html'});
+      note:'Pass applies only to configured checks. No accessibility audit, functional suite, semantic source-asset verification, or inferred responsive design.'}});
+  const findingDocument=await writeFindings(dir,report,redactUrls(screen),{cropImages:format==='html'});
   report.findingsVersion=findingDocument.schemaVersion;report.findings=findingDocument.findings;
   report.format=format;
   report.artifacts={directory:dir,report:format!=='json'?path.join(dir,'report.html'):null,json:path.join(dir,'report.json'),findings:path.join(dir,'findings.json'),result:path.join(dir,'result.json')};

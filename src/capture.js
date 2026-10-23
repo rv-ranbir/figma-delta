@@ -1,21 +1,37 @@
 import { chromium } from 'playwright';
 import { inside } from './config.js';
+const pageErrors=new WeakMap();
 
-export async function capture(root,screen,output){
-  const browser=await chromium.launch({headless:true,...(process.env.FIDELITY_CHROMIUM_EXECUTABLE_PATH?{executablePath:process.env.FIDELITY_CHROMIUM_EXECUTABLE_PATH}:{})});
+export async function openCapturePage(root,screen,{headless=true}={}){
+  const browser=await chromium.launch({headless,...(process.env.FIDELITY_CHROMIUM_EXECUTABLE_PATH?{executablePath:process.env.FIDELITY_CHROMIUM_EXECUTABLE_PATH}:{})});
   try{
     const context=await browser.newContext({viewport:screen.viewport,deviceScaleFactor:1,
       colorScheme:screen.colorScheme,reducedMotion:'reduce',locale:screen.locale,timezoneId:screen.timezoneId,
       ...(screen.storageState?{storageState:inside(root,screen.storageState)}:{})});
-    const page=await context.newPage();page.setDefaultTimeout(screen.timeoutMs);const errors=[];
-    page.on('pageerror',e=>errors.push(e.message));
+    const page=await context.newPage();page.setDefaultTimeout(screen.timeoutMs);
+    const errors=[];pageErrors.set(page,errors);
+    page.on('request',request=>{if(request.isNavigationRequest()&&request.frame()===page.mainFrame())errors.length=0;});
+    page.on('pageerror',error=>errors.push(error.message));
     const response=await page.goto(screen.url,{waitUntil:'load',timeout:screen.timeoutMs});
-    if(response&&!response.ok())throw Error(`Page returned HTTP ${response.status()}`);
-    await page.locator(screen.readySelector).waitFor({state:'visible'});
+    if(headless&&response&&!response.ok())throw Error(`Page returned HTTP ${response.status()}`);
+    return {browser,page};
+  }catch(error){await browser.close();throw error;}
+}
+export async function capture(root,screen,output,{page:livePage,passive=false}={}){
+  if(livePage?.isClosed())throw Error('Interactive page was closed. Reopen the comparison browser and navigate to the required state.');
+  if(passive&&!livePage)throw Error('Passive capture requires a caller-owned page');
+  if(livePage){const size=livePage.viewportSize()??(passive?await livePage.evaluate(()=>({width:innerWidth,height:innerHeight})):null);if(size?.width!==screen.viewport.width||size?.height!==screen.viewport.height)throw Object.assign(Error('Page viewport must match the pinned reference dimensions'),{code:'VIEWPORT_MISMATCH'});}
+  if(passive&&screen.captureSelector)throw Object.assign(Error('Prepared pages support viewport capture only; element capture may scroll the page'),{code:'UNSUPPORTED_PAGE'});
+  const owned=livePage?null:await openCapturePage(root,screen);
+  const page=livePage??owned.page;const tracked=passive?undefined:pageErrors.get(page);const errors=tracked??[];const onError=e=>errors.push(e.message);
+  if(!tracked)page.on('pageerror',onError);
+  let motionStyle;
+  try{
+    await page.locator(screen.readySelector).waitFor({state:'visible',timeout:screen.timeoutMs});
     // Disable motion before measurements as well as during screenshots.
-    await page.addStyleTag({content:'*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important;scroll-behavior:auto!important}'});
+    if(!passive)motionStyle=await page.addStyleTag({content:'*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important;scroll-behavior:auto!important}'});
     let deadline;
-    try{await Promise.race([page.evaluate(async()=>{await document.fonts.ready;await Promise.all([...document.images].map(i=>i.decode().catch(()=>{})));window.scrollTo(0,0);}),new Promise((_,reject)=>{deadline=setTimeout(()=>reject(Error('Fonts/images did not settle before timeoutMs')),screen.timeoutMs);})]);}finally{clearTimeout(deadline);}
+    try{await Promise.race([page.evaluate(async resetScroll=>{await document.fonts.ready;await Promise.all([...document.images].map(i=>i.decode().catch(()=>{})));if(resetScroll)window.scrollTo(0,0);},!livePage),new Promise((_,reject)=>{deadline=setTimeout(()=>reject(Error('Fonts/images did not settle before timeoutMs')),screen.timeoutMs);})]);}finally{clearTimeout(deadline);}
     const fonts=await page.evaluate(list=>list.map(f=>({family:f,loaded:[...document.fonts].some(face=>face.family.replace(/["']/g,'')===f&&face.status==='loaded')})),screen.requiredFonts);
     const target=screen.captureSelector?page.locator(screen.captureSelector):null;
     if(target)await target.waitFor({state:'visible'});
@@ -39,8 +55,9 @@ export async function capture(root,screen,output){
       measures.push({name:region.name,selector:region.selector,...value});
     }
     const brokenImages=await page.evaluate(()=>[...document.images].filter(i=>!i.complete||i.naturalWidth===0).map(i=>({src:i.currentSrc,alt:i.alt})));
-    const options={path:output,animations:'disabled',caret:'hide',scale:'css',timeout:screen.timeoutMs};
+    const options={path:output,animations:passive?'allow':'disabled',caret:passive?'initial':'hide',scale:'css',timeout:screen.timeoutMs};
     if(target)await target.screenshot(options);else await page.screenshot({...options,fullPage:false});
-    return {measures,fonts,brokenImages,errors,browserVersion:browser.version(),capturedAt:new Date().toISOString()};
-  }finally{await browser.close();}
+    const environment=passive?await page.evaluate(()=>({locale:navigator.language,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone,colorScheme:matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light',deviceScaleFactor:devicePixelRatio})):undefined;
+    return {measures,fonts,brokenImages,errors:tracked?tracked.splice(0):errors,browserVersion:page.context().browser()?.version()??'unavailable',capturedAt:new Date().toISOString(),url:page.url(),entryUrl:screen.url,...(environment?{environment}:{})};
+  }finally{if(livePage&&motionStyle)await motionStyle.evaluate(el=>el.remove()).catch(()=>{});if(!tracked)page.off('pageerror',onError);if(owned)await owned.browser.close();}
 }

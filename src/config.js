@@ -3,7 +3,7 @@ import path from 'node:path';
 import { z } from 'zod';
 
 const rect = z.object({x:z.number().nonnegative(), y:z.number().nonnegative(), width:z.number().positive(), height:z.number().positive()}).strict();
-const region = z.object({
+export const regionSchema = z.object({
   name:z.string().regex(/^[a-zA-Z0-9_-]+$/), selector:z.string().min(1),
   nodeId:z.string().optional(), rect:rect.optional(),
   styles:z.record(z.union([z.string(),z.number()])).default({}),
@@ -22,7 +22,7 @@ export const screenSchema = z.object({
   maxMismatchPercent:z.number().min(0).max(100).default(2),
   pixelThreshold:z.number().min(0).max(1).default(0.1),
   tolerancePx:z.number().nonnegative().default(2),
-  masks:z.array(rect).default([]), regions:z.array(region).default([]),
+  masks:z.array(rect).default([]), regions:z.array(regionSchema).default([]),
   requiredFonts:z.array(z.string()).default([])
 }).strict();
 export const configSchema = z.object({

@@ -13,11 +13,12 @@ const server=fileURLToPath(new URL('../src/mcp.js',import.meta.url));
 
 test('real MCP stdio handshake, discover tools, read project, error handling',async t=>{
  const root=await fs.mkdtemp(path.join(os.tmpdir(),'fidelity MCP 测试-'));
- t.after(()=>fs.rm(root,{recursive:true,force:true}));await install(root);
+ t.after(()=>fs.rm(root,{recursive:true,force:true}));await install(root,{url:'http://localhost:3000/?token=SECRET'});
  const transport=new StdioClientTransport({command:process.execPath,args:[server,'--project',root],stderr:'pipe'});
  const client=new Client({name:'fidelity-test',version:'1.0.0'});await client.connect(transport);t.after(()=>client.close());
- const {tools}=await client.listTools();assert.equal(tools.length,7);assert.ok(tools.some(t=>t.name==='fidelity_verify'));
+ const {tools}=await client.listTools();assert.equal(tools.length,8);assert.ok(tools.some(t=>t.name==='fidelity_verify'));
  const r=await client.callTool({name:'fidelity_project',arguments:{}});assert.equal(JSON.parse(r.content[0].text).project,root);
+ assert.equal(r.content[0].text.includes('SECRET'),false);assert.equal((await fs.readFile(path.join(root,'fidelity.config.json'),'utf8')).includes('SECRET'),true);
  const bad=await client.callTool({name:'fidelity_design',arguments:{screen:'unknown'}});assert.equal(bad.isError,true);assert.match(bad.content[0].text,/Unknown screen/);
  const missing=await client.callTool({name:'fidelity_sync',arguments:{screen:'desktop'}});assert.equal(missing.isError,true);assert.match(missing.content[0].text,/figmaUrl/);
  await fs.mkdir(path.join(root,'design'),{recursive:true});
@@ -37,4 +38,24 @@ test('real MCP stdio handshake, discover tools, read project, error handling',as
  assert.deepEqual(Buffer.from(regionImage.content[0].data,'base64'),cropped);
  const unknownImage=await client.callTool({name:'fidelity_image',arguments:{screen:'desktop',image:'reference',findingId:'finding-ffffffffffffffffffffffff'}});
  assert.equal(unknownImage.isError,true);assert.match(unknownImage.content[0].text,/Unknown finding/);
+});
+
+test('MCP prepares independent comparisons without config and scopes existing session tools by comparisonId',async t=>{
+ const root=await fs.mkdtemp(path.join(os.tmpdir(),'delta MCP compare-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));
+ await sharp({create:{width:20,height:20,channels:4,background:'white'}}).png().toFile(path.join(root,'frame.png'));
+ const client=new Client({name:'comparison-test',version:'1.0.0'});await client.connect(new StdioClientTransport({command:process.execPath,args:[server,'--project',root],stderr:'pipe'}));t.after(()=>client.close());
+ const project=await client.callTool({name:'fidelity_project',arguments:{}});assert.equal(JSON.parse(project.content[0].text).config,null);
+ const prepared=await client.callTool({name:'fidelity_prepare',arguments:{url:'http://localhost:3000',reference:'frame.png'}});assert.equal(prepared.isError,undefined);
+ const comparison=JSON.parse(prepared.content[0].text);assert.deepEqual(comparison.viewport,{width:20,height:20});
+ const args={comparisonId:comparison.comparisonId,screen:'desktop'};
+ const image=await client.callTool({name:'fidelity_image',arguments:{...args,image:'reference'}});assert.equal(image.content[0].type,'image');
+ const begin=await client.callTool({name:'fidelity_begin',arguments:args});const session=JSON.parse(begin.content[0].text);assert.equal(session.status,'active');
+ const sync=await client.callTool({name:'fidelity_sync',arguments:args});assert.equal(sync.isError,true);assert.match(sync.content[0].text,/pinned/i);
+ const unknown=await client.callTool({name:'fidelity_project',arguments:{comparisonId:'00000000-0000-4000-8000-000000000000'}});assert.equal(unknown.isError,true);
+ assert.equal((await fs.readFile(path.join(comparison.root,'.figma-fidelity/sessions/desktop.json'),'utf8')).includes(session.id),true);
+ const metadataFile=path.join(comparison.root,'comparison.json');const metadata=JSON.parse(await fs.readFile(metadataFile,'utf8'));metadata.interactive=true;await writeJson(metadataFile,metadata);
+ const premature=await client.callTool({name:'fidelity_verify',arguments:args});assert.equal(premature.isError,true);assert.match(premature.content[0].text,/confirm readiness/);
+ const closed=await client.callTool({name:'fidelity_verify',arguments:{...args,confirmReady:true}});assert.equal(closed.isError,true);assert.match(closed.content[0].text,/unavailable or closed/);
+ await assert.rejects(()=>fs.access(path.join(comparison.root,'.figma-fidelity/runs')));
+ await assert.rejects(()=>fs.access(path.join(root,'fidelity.config.json')));
 });

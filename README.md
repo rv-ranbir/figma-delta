@@ -49,7 +49,7 @@ The demo detects deliberate layout errors, applies a known fixture correction an
 
 ### From npm
 
-The npm release pipeline is prepared; these commands become available after the first package publication:
+Install from the public npm registry:
 
 ```bash
 npm install -g figma-delta
@@ -60,6 +60,38 @@ figma-delta doctor
 Use a persistent installation for Cursor integrations. The generated MCP configuration references the installed package and Node executable; update those paths if you move the installation or change Node installations.
 
 ## Quick start
+
+Start your app, then supply its URL and the exact Figma frame. No initialization or configuration file is needed for pixel checks:
+
+```bash
+figma-delta check --url "http://localhost:3000/dashboard" --figma "https://www.figma.com/design/FILE/Design?node-id=123-456" --format html
+```
+
+The viewport is inferred from the frame. REST access requires `FIGMA_ACCESS_TOKEN`. Alternatively, use a 1× PNG exported manually or through your existing official Figma MCP:
+
+```bash
+figma-delta check --url "http://localhost:3000/dashboard" --reference "design/dashboard.png" --format html
+```
+
+Each comparison pins its own reference and records its frame/version when available. Selecting another frame creates a separate comparison. Exact CSS comparisons need explicit element mappings; add `--mappings design/regions.json` when available. See [per-run comparisons](docs/per-run-comparisons.md).
+
+### Login, guards and multi-step flows
+
+```bash
+figma-delta check --url "http://localhost:3000" --reference "design/checkout-review.png" --interactive --ready "#checkout-review" --format html
+```
+
+A visible browser opens at the reference viewport. Log in, choose a workspace or navigate a wizard yourself. Press Enter in the terminal when the screen is ready. Capture uses **that same live page**, preserving sessionStorage, selected tabs and open dialogs; it does not navigate back to the entry URL. Reports identify the actual captured URL.
+
+Optional `--save-login` saves local cookies, localStorage and IndexedDB under ignored `.figma-fidelity/`. Reuse with `--storage-state .figma-fidelity/auth.json`. Saved login cannot recreate wizard state, sessionStorage, expired sessions or every SSO flow. Do not share authentication files.
+
+In Cursor, ask: **“Compare this Figma frame with this app URL. QA only; open an interactive browser so I can reach the target screen.”** The skill uses `fidelity_prepare`, waits for your readiness confirmation, then captures the live page. Enable the project MCP in Cursor's Customize → MCPs if disabled.
+
+### Project-prepared browser pages
+
+If your project needs temporary tokens, custom startup or an existing authenticated browser, keep that preparation in your own Playwright code. Pass its ready `page` to `checkPreparedPage()`; Delta measures in place and returns the same reports. See [prepared-page integration](docs/prepared-pages.md) for the short example and readiness contract.
+
+### Saved screen configurations (optional)
 
 The following commands run from the source checkout. Replace `../my-app` with your application's folder and use its actual route and reference dimensions. Start the application using its own development or preview command.
 
@@ -154,6 +186,7 @@ Capture conditions, reference dimensions and fixture data must be consistent. Fo
 | --- | --- |
 | [Configuration and CLI/MCP reference](docs/configuration.md) | Screens, selectors, styles, capture settings, commands and repair limits |
 | [Figma references](docs/figma-reference.md) | Local PNG exports, official Figma MCP and optional REST snapshots |
+| [Prepared pages](docs/prepared-pages.md) | Compare an existing Playwright page; project-owned startup, tokens and login |
 | [Findings and JSON](docs/findings-format.md) | Expected/actual values, evidence, color normalization and QA review |
 | [Validation](VALIDATION.md) | Platform coverage, packaged-consumer checks and benchmark limitations |
 | [Contributing](CONTRIBUTING.md) | Development setup, checks and pull requests |

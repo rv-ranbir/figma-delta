@@ -56,7 +56,7 @@ export async function writeFindings(dir,report,screen,{cropImages=true}={}){
     const target={region:issue.region??null,selector:configured?.selector??region?.actual?.selector??null,nodeId:configured?.nodeId??null,resource:issue.resource??null};
     // Include unmapped issue subjects but never mismatch values, order, or run identifiers.
     const subject=issue.resource??(['font','asset','runtime'].includes(issue.kind)?issue.message:null);
-    const id='finding-'+identity([report.screen,report.url,target.region,target.selector,target.nodeId,issue.kind,issue.property??null,subject]);
+    const id='finding-'+identity([...(report.comparison?.id?[report.comparison.id]:[]),report.screen,report.url,target.region,target.selector,target.nodeId,issue.kind,issue.property??null,subject]);
     if(byId.has(id)){byId.get(id).occurrences++;continue;}
     const evidenceKey=JSON.stringify([target.region,target.selector]);
     let evidence=evidenceCache.get(evidenceKey);
@@ -82,7 +82,7 @@ export async function writeFindings(dir,report,screen,{cropImages=true}={}){
       review:{status:'unreviewed',severity:null,comment:null}};
     findings.push(finding);byId.set(id,finding);
   }
-  const document={schemaVersion:1,colorFormat:COLOR_FORMAT,runId:report.runId,screen:report.screen,url:report.url,viewport:report.viewport,capturedAt:report.capturedAt,pass:report.pass,
+  const document={schemaVersion:1,colorFormat:COLOR_FORMAT,runId:report.runId,screen:report.screen,url:report.url,viewport:report.viewport,capturedAt:report.capturedAt,pass:report.pass,...(report.comparison?{comparison:report.comparison}:{}),
     reviewNote:'Review fields are a fresh export template, not persisted review state. Keep human annotations separately, keyed by finding ID. Severity and root cause require review.',findings};
   await writeJson(path.join(dir,'findings.json'),document);
   return document;
@@ -101,6 +101,6 @@ export function compactReport(report){
     ...(finding.expected?.tolerance!==undefined?{tolerance:finding.expected.tolerance}:{}),
     ...(finding.delta!==undefined?{delta:finding.delta}:{}),...(finding.actual?.count!==undefined&&finding.actual.count!==null?{count:finding.actual.count}:{}),
     ...(finding.occurrences>1?{occurrences:finding.occurrences}:{})}));
-  return {schemaVersion:1,format:'json',colorFormat:COLOR_FORMAT,runId:report.runId,screen:report.screen,url:report.url,viewport:report.viewport,pass:report.pass,
+  return {schemaVersion:1,format:'json',colorFormat:COLOR_FORMAT,runId:report.runId,screen:report.screen,url:report.url,viewport:report.viewport,pass:report.pass,...(report.comparison?{comparison:report.comparison}:{}),
     mismatchPercent:report.pixels?.mismatchPercent,differences,coverage:report.coverage,session:report.session??null,artifacts:report.artifacts};
 }

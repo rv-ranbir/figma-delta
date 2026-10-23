@@ -12,7 +12,7 @@ New-Item -ItemType Directory -Path $payload -Force | Out-Null
 try {
     # Explicit allowlist: never copy the checkout, local projects or installed dependencies wholesale.
     $entries = @('src', 'templates', 'scripts', 'examples', 'test',
-        'docs/configuration.md', 'docs/figma-reference.md', 'docs/findings-format.md', 'docs/distribution.md',
+        'docs/configuration.md', 'docs/per-run-comparisons.md', 'docs/prepared-pages.md', 'docs/figma-reference.md', 'docs/findings-format.md', 'docs/distribution.md',
         'package.json', 'package-lock.json', '.npmrc', '.nvmrc', 'README.md', 'CONTRIBUTING.md', 'SECURITY.md', 'LICENSE', 'START-HERE-WINDOWS.md',
         'START-HERE-MAC.md', 'VALIDATION.md', 'CURSOR-BENCHMARK.md', '.gitignore')
     foreach ($entry in $entries) {
