@@ -6,6 +6,7 @@ const rect = z.object({x:z.number().nonnegative(), y:z.number().nonnegative(), w
 export const regionSchema = z.object({
   name:z.string().regex(/^[a-zA-Z0-9_-]+$/), selector:z.string().min(1),
   nodeId:z.string().optional(), rect:rect.optional(),
+  text:z.string().optional(),textMode:z.enum(['exact','ignore']).optional(),
   styles:z.record(z.string(),z.union([z.string(),z.number()])).default({}),
   maxMismatchPercent:z.number().min(0).max(100).optional(),
   tolerancePx:z.number().nonnegative().optional()

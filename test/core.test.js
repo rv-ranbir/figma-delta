@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import sharp from 'sharp';
 import { compare, compareRegion } from '../src/compare.js';
+import * as comparison from '../src/compare.js';
 import { configSchema, inside, withLock, writeJson } from '../src/config.js';
 import { parseFigmaUrl, flatten, syncFigma } from '../src/figma.js';
 import { checkGeometry, regionExpectations } from '../src/runner.js';
@@ -41,6 +42,15 @@ test('regional compare catches localized differences and respects masks',async t
  assert.equal(await compareRegion(path.join(d,'a.png'),path.join(d,'b.png'),{x:0,y:0,width:10,height:20}),100);
  await assert.rejects(()=>compareRegion(path.join(d,'a.png'),path.join(d,'b.png'),{x:18,y:0,width:10,height:20}),/outside/);
  await assert.rejects(()=>compareRegion(path.join(d,'a.png'),path.join(d,'b.png'),{x:0,y:0,width:10,height:20},{masks:[{x:0,y:0,width:10,height:20}]}),/fully masked/);
+});
+
+test('shared regional comparison retains local budgets and masks across asset crops',async t=>{
+ const d=await temp();t.after(()=>fs.rm(d,{recursive:true,force:true,maxRetries:5}));await png(path.join(d,'a.png'),'black');await png(path.join(d,'b.png'),'white');
+ assert.equal(typeof comparison.createRegionComparator,'function');
+ const compareCrop=await comparison.createRegionComparator(path.join(d,'a.png'),path.join(d,'b.png'),{masks:[{x:0,y:0,width:5,height:20}]});
+ assert.equal(compareCrop({x:0,y:0,width:10,height:20}),100);assert.equal(compareCrop({x:10,y:0,width:10,height:20}),100);
+ assert.throws(()=>compareCrop({x:0,y:0,width:5,height:20}),/fully masked/);
+ assert.throws(()=>compareCrop({x:19,y:0,width:10,height:20}),/outside/);
 });
 test('parse Figma frame links and reject unrelated URL or absent node',()=>{
  assert.deepEqual(parseFigmaUrl('https://www.figma.com/design/abc123/File?node-id=1-2'),{key:'abc123',nodeId:'1:2'});

@@ -29,6 +29,10 @@ QA only: do not edit application source or begin a repair session. Follow this
 repository's instructions and use existing design mappings when available.
 Report measured expected-versus-actual differences in color, typography,
 spacing and geometry for mapped elements; identify unmapped coverage honestly.
+Check mapped copy, actual rendered fonts, clipping and covered text too. Mark
+dynamic copy with textMode ignore only where the project establishes it is
+dynamic, and list those exclusions. Include local Figma asset findings and
+unverified checks; do not treat a small global pixel difference as full approval.
 Use the default simple report and provide its HTML path and result.json path.
 Do not infer a CSS cause from pixel differences alone.
 ```

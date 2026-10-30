@@ -33,7 +33,7 @@ The export has `schemaVersion: 1`, run ID, screen, URL, viewport, capture time, 
 ## Each finding
 
 - `id`: deterministic identity based on screen, URL, region, selector, node ID, check kind/property and resource/error subject. It stays stable when measured values, run IDs or issue order change. Changing a mapping or URL can change the ID. IDs alone do not establish equivalence across changed design baselines.
-- `category`: `geometry`, `style`, `coverage`, `region-pixels`, `pixels`, `element`, `font`, `asset`, or `runtime`. A `coverage` finding means a configured/mapped property could not be verified; it is not a confirmed design defect. It includes a `reason`, uses `comparison: "unavailable"` in compact JSON, and prevents a clean pass until resolved or reviewed outside the automated check.
+- `category`: `geometry`, `style`, `content`, `visibility`, `coverage`, `region-pixels`, `pixels`, `element`, `font`, `asset`, or `runtime`. A `coverage` finding means a configured/mapped property could not be verified; it is not a confirmed design defect. It includes a `reason`, uses `comparison: "unavailable"` in compact JSON, and prevents a clean pass until resolved or reviewed outside the automated check.
 - `occurrences`: number of identical logical failures grouped under this ID, such as repeated runtime errors or multiple broken images sharing one URL. The original `issues` array remains ungrouped.
 - `summary`: the failed check's evidence statement.
 - `target`: region, CSS selector, Figma node ID and resource, with `null` for unavailable mappings. It does not guess a source file or line.
@@ -57,7 +57,7 @@ SVG `fill: none` and `stroke: none` preserve the `none` value and use `paint-equ
 
 Opacity, filters, blending, layered backgrounds, text strokes, styled first-letter/first-line, generated content, native control text and shadow/custom element text may require visual review. These cases produce coverage findings when they affect a checked property. Map a smaller ordinary text element where possible; Delta does not guess composited pixel colors or align mixed rich-text runs by position. A tiny text difference can stay below the pixel budget, so exact checks still require selector mappings and design values.
 
-`coverage` records mapped region counts, unverified check counts and (for Figma snapshots) text nodes without direct mappings. Unmapped nodes are not automatically checked. Older snapshots recover missing rich-text and ancestor paint metadata from the same saved raw design version, without changing files or fetching a newer design. If recovery is unavailable, resync explicitly before a new repair session; existing sessions remain pinned and may reject changed expectation metadata.
+`coverage` records mapped region counts, exact text checks, ignored copy regions, local asset checks, unverified check counts and (for Figma snapshots) text nodes without direct mappings. Unmapped text is not automatically property-checked. Unmapped vector/image bounds receive local pixel checks without a guessed selector. Older snapshots recover missing rich-text and ancestor paint metadata from the same saved raw design version, without changing files or fetching a newer design. If recovery is unavailable, resync explicitly before a new repair session; existing sessions remain pinned and may reject changed expectation metadata.
 
 Figma positions do not establish CSS margins. A screenshot cannot distinguish margin from padding or gap; supply known expected CSS margins when needed. This is especially relevant to older PNG-only benchmarks: they may have browser color measurements but no expected reference color. Reports show that coverage gap instead of making a color diagnosis from pixels.
 
@@ -75,6 +75,16 @@ Example explicit expectations before starting a session:
   }
 }
 ```
+
+## Text, font and visibility findings
+
+Mapped Figma text is compared with rendered copy (`content`, property `text`, operator `normalized-text-equals`). A region's `text` supplies or overrides expected copy; `textMode: "ignore"` skips copy explicitly and appears in coverage. Unicode and whitespace normalization follow [configuration](configuration.md); preformatted spaces are retained. Incomplete text measurement is unverified rather than a pass.
+
+`font` findings with property `renderedFontFamily` compare the expected family with measured Chromium glyph fonts. This differs from the existing declared CSS family check and explicit required-web-font loading check. Ambiguous custom aliases or mixed glyph fallback use coverage findings; actual font weight/axis identity is not fully certified.
+
+`visibility` findings identify measured clipping or text outside the viewport. Potential obstructions, pseudo/image overlays and unsupported layer geometry use `coverage` with property `textVisibility`, since hit-testing alone does not prove opaque paint. Sampled visibility can miss unsampled or complex paint; use visual review for that uncertainty.
+
+Automatically checked Figma assets use `region-pixels`, a Figma `nodeId` and no fabricated selector. Their expected bounds provide cropped evidence in full HTML. The finding reports local mismatch, not whether a specific icon file or CSS declaration caused it. Masks remain explicit pixel exclusions.
 
 ## Full QA workspace workflow (`--format html`)
 

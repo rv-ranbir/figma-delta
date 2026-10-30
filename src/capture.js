@@ -1,6 +1,8 @@
 import { chromium } from 'playwright';
 import { inside } from './config.js';
 import { measureElement } from './measure-element.js';
+import { measureTextVisibility } from './text-visibility.js';
+import { measureRenderedFonts } from './rendered-fonts.js';
 const pageErrors=new WeakMap();
 
 export async function openCapturePage(root,screen,{headless=true}={}){
@@ -44,10 +46,14 @@ export async function capture(root,screen,output,{page:livePage,passive=false}={
       const locator=page.locator(region.selector);const count=await locator.count();
       if(count!==1){measures.push({name:region.name,selector:region.selector,error:count===0?'missing':'ambiguous selector',count});continue;}
       const value=await locator.evaluate(measureElement,Object.keys(region.styles));
+      Object.assign(value,await locator.evaluate(el=>{const text=el.innerText??el.textContent??'';return {renderedText:text.slice(0,10000),textComplete:text.length<=10000,textWhiteSpace:getComputedStyle(el).whiteSpace};}));
+      if(value.textContentReason)value.textComplete=false;
+      value.textVisibility=await locator.evaluate(measureTextVisibility);
       value.rect.x-=crop.x;value.rect.y-=crop.y;
       if(value.rect.width===0||value.rect.height===0||value.styles.display==='none'||value.styles.visibility==='hidden'||Number(value.styles.opacity)===0)value.error='hidden or zero-sized';
       measures.push({name:region.name,selector:region.selector,...value});
     }
+    await measureRenderedFonts(page,measures);
     const brokenImages=await page.evaluate(()=>[...document.images].filter(i=>!i.complete||i.naturalWidth===0).map(i=>({src:i.currentSrc,alt:i.alt})));
     const options={path:output,animations:passive?'allow':'disabled',caret:passive?'initial':'hide',scale:'css',timeout:screen.timeoutMs};
     if(target)await target.screenshot(options);else await page.screenshot({...options,fullPage:false});

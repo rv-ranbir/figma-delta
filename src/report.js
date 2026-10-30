@@ -43,6 +43,10 @@ export function describeFinding(finding){
   if(finding.category==='coverage'){
     title=`${region}: ${properties[finding.property]??finding.property} could not be verified`;
     description=finding.reason??finding.summary;
+  }else if(finding.category==='content'){
+    title=`${region}: text does not match`;description='The rendered text differs from the expected copy after whitespace and Unicode normalization.';
+  }else if(finding.category==='visibility'){
+    title=`${region}: text is not fully visible`;description=finding.reason??finding.summary;
   }else if(['pixels','region-pixels'].includes(finding.category)){
     title=`${region} looks different`;
     description='The rendered pixels differ from the reference beyond the configured limit. Compare the images to decide whether this needs a fix.';
@@ -58,7 +62,7 @@ export function describeFinding(finding){
     title=`${region}: ${finding.actual.value==='missing'?'element not found':'element needs checking'}`;
     description='The configured selector must identify one visible element. Check whether it is missing, hidden, or matches more than one element.';
   }else if(finding.category==='font'){
-    title='A required font did not load';description='Check the font file, font-face declaration and loading state.';
+    title=finding.property==='renderedFontFamily'?`${region}: browser used a different font`:'A required font did not load';description=finding.summary??'Check the font file, font-face declaration and loading state.';
   }else if(finding.category==='asset'){
     title='An image did not load';description='Check the image URL and loading state.';
   }else{
@@ -81,7 +85,7 @@ export async function writeReport(dir,report){
     const pictures={};for(const [key,file] of Object.entries(finding.evidence.images))pictures[key]=await image(file);
     return `<article class="finding-detail" data-finding-id="${id}" ${index?'hidden':''}>
 <header class="detail-heading"><div><p class="region-label">${escape(name(finding.target.region))} <span>· Finding ${index+1} of ${findings.length}</span></p><h2>${escape(view.title)}</h2><p class="description">${escape(view.description)}</p></div><span class="status" data-detail-status="${id}">Unreviewed</span></header>
-${['font','asset','runtime','pixels','coverage'].includes(finding.category)?`<section class="recorded-check"><h3>Recorded check</h3><p>${escape(finding.summary)}</p>${finding.target.resource?`<p><strong>Resource:</strong> <code>${escape(finding.target.resource)}</code></p>`:''}<p><strong>Expected:</strong> ${escape(view.expected)} <span>·</span> <strong>Actual:</strong> ${escape(view.actual)}</p></section>`:''}
+${['font','asset','runtime','pixels','coverage','content','visibility'].includes(finding.category)?`<section class="recorded-check"><h3>Recorded check</h3><p>${escape(finding.summary)}</p>${finding.target.resource?`<p><strong>Resource:</strong> <code>${escape(finding.target.resource)}</code></p>`:''}<p><strong>Expected:</strong> ${escape(view.expected)} <span>·</span> <strong>Actual:</strong> ${escape(view.actual)}</p></section>`:''}
 ${propertyTable(view.properties,finding.evidenceType==='pixel-comparison')}
 <section class="evidence-section" aria-label="Visual evidence"><div class="evidence-toolbar"><h3>Compare the affected area</h3><span class="muted">${finding.evidence.scope==='region'?'Affected area':'Full page'} · ${finding.evidence.rect.width} × ${finding.evidence.rect.height}px</span></div>
 <div class="comparison" data-evidence-view="compare"><figure><figcaption>Figma reference <span>Expected</span></figcaption><div class="image-surface"><img alt="Figma reference for ${region}" src="${pictures.reference}"></div></figure><figure><figcaption>Browser capture <span>Actual</span></figcaption><div class="image-surface"><img alt="Browser capture for ${region}" src="${pictures.actual}"></div></figure></div>

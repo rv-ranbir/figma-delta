@@ -45,6 +45,20 @@ For local PNG references replace `figmaUrl` with `"reference": "design/reference
 
 `nodeId` maps a **unique selector** to a node in the synced manifest. From this node we derive x/y/width/height, basic font properties, supported solid text/background fills, corner radius and explicit auto-layout padding/axis gap where available. Explicit `rect` and `styles` override them before a session starts. No DOM-to-Figma matching is guessed. Cursor sets these mappings using design context and source inspection.
 
+Mapped Figma text also supplies expected copy. Optional region `text` overrides it or supplies expected copy for PNG references. `textMode: "ignore"` explicitly skips copy comparison for dynamic values while retaining style, geometry and visibility checks; ignored regions are listed in coverage. For example:
+
+```json
+{"name":"order-number","selector":"[data-testid=order-number]","nodeId":"1:25","textMode":"ignore"}
+```
+
+Text comparisons normalize Unicode NFC and line endings, and collapse ordinary whitespace. Preformatted text preserves spaces and newlines. Generated/native/shadow text or text exceeding the inspection limit produces unverified coverage rather than a guessed copy mismatch. CSS letter spacing `normal` and `0px` share a zero-spacing comparison value.
+
+Expected rendered text receives viewport/clipping and sampled obstruction checks. Potentially covering layers produce unverified coverage when paint order cannot be proven; transforms, masks and complex compositing may require visual review. These checks do not certify every visible glyph. Styles-only PNG regions without expected text retain their existing CSS-check behavior.
+
+Chromium font diagnostics inspect actual glyph font families when a font-family expectation exists. Generic families such as `sans-serif` do not prescribe a specific platform font. Custom aliases are accepted only when the available evidence identifies them reliably; ambiguous aliases and mixed fallback glyph fonts require review. These diagnostics do not certify every font weight, glyph shape or variable-font axis. Non-CSS selectors or unsupported browsers can return unverified font coverage. `requiredFonts` remains available for explicit web-font loading checks.
+
+Unmapped Figma vector shapes and image-fill bounds receive local pixel comparisons automatically, clipped to the reference viewport and respecting masks. Their findings include the Figma node ID without inventing a DOM selector or CSS cause. PNG-only references need supplied asset regions for equivalent local checks. Local image comparison does not establish source-file identity.
+
 Computed style checks cover `fontFamily`, `fontSize`, `fontWeight`, `lineHeight`, `letterSpacing`, `color`, `backgroundColor`, `borderRadius`, `display`, `visibility`, `opacity`, margins, padding and layout gaps. Additional configured CSS properties are captured too. Use CSS color expressions for colors and computed lengths such as `16px` for spacing. Length style comparison has a fixed 0.5px rounding tolerance. Font-family checks compare the first family; a missing actual web FontFace is a separate check. `requiredFonts` is for web fonts only; omit system fonts such as Arial.
 
 Other screen settings:

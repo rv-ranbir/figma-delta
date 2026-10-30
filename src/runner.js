@@ -10,6 +10,8 @@ import { writeFindings, compactReport } from './findings.js';
 import { compareMeasuredStyle } from './properties.js';
 import { designProperties } from './design-properties.js';
 import { flatten } from './figma.js';
+import { checkSemantics } from './semantics.js';
+import { checkDesignAssets } from './design-assets.js';
 import { writeSimpleReport } from './simple-report.js';
 import { normalizeStyles, isColorProperty, COLOR_FORMAT } from './colors.js';
 import { redactUrls } from './privacy.js';
@@ -44,11 +46,14 @@ export function regionExpectations(region,manifest){
     if(node.primaryAxisAlignItems!=='SPACE_BETWEEN'&&node.layoutWrap!=='WRAP'&&Number.isFinite(node.itemSpacing)&&node.itemSpacing>=0)styles[node.layoutMode==='HORIZONTAL'?'columnGap':'rowGap']=node.itemSpacing+'px';
   }
   for(const property of Object.keys(region.styles??{}))delete unavailable[property];
-  return {rect:region.rect??node?.rect,...normalizeStyles({...styles,...region.styles}),unavailable};
+  return {rect:region.rect??node?.rect,...normalizeStyles({...styles,...region.styles}),unavailable,
+    ...(region.textMode!=='ignore'&&(region.text!==undefined||node?.text!==undefined)?{text:region.text??node.text}:{}),
+    checkTextVisibility:region.text!==undefined||node?.type==='TEXT'};
 }
 export function checkGeometry(region,actual,expected,tolerance){
   if(actual.error)return [{kind:'element',region:region.name,message:actual.error}];
   const issues=[];
+  issues.push(...checkSemantics(region,actual,expected));
   for(const [property,reason] of Object.entries(expected.unavailable??{}))issues.push({kind:'coverage',region:region.name,property,reason,message:`${property} could not be verified: ${reason}`});
   if(expected.rect){for(const key of ['x','y','width','height']){const delta=actual.rect[key]-expected.rect[key];if(Math.abs(delta)>tolerance)issues.push({kind:'geometry',region:region.name,property:key,expected:expected.rect[key],actual:actual.rect[key],delta,message:`${key}: expected ${expected.rect[key]}px, actual ${Number(actual.rect[key].toFixed(2))}px (Δ ${Number(delta.toFixed(2))}px)`});}}
   for(const [key,val] of Object.entries(expected.styles)){
@@ -56,7 +61,7 @@ export function checkGeometry(region,actual,expected,tolerance){
     const comparison=compareMeasuredStyle(actual,key,val),value=comparison.value;
     if(comparison.reason){issues.push({kind:'coverage',region:region.name,property:key,expected:val,actual:value,reason:comparison.reason,message:`${key} could not be verified: ${comparison.reason}`});continue;}
     if(!comparison.matches){
-      const color=isColorProperty(key),desired=color?comparison.expectedColor:val,observed=color?comparison.actualColor:value;
+      const color=isColorProperty(key),desired=color?comparison.expectedColor:comparison.expectedValue,observed=color?comparison.actualColor:value;
       issues.push({kind:'style',region:region.name,property:key,expected:desired,actual:observed,
         ...(color?{colorFormat:COLOR_FORMAT,expectedRaw:expected.rawStyles?.[key]??val,actualRaw:value}:{}),
         message:comparison.method==='color-unavailable'?`${key}: color normalization unavailable; inspect raw values`:`${key}: expected ${desired}, actual ${observed??'unavailable'}`});
@@ -103,6 +108,8 @@ export async function verify(root,name,{sessionId,format='simple',page,compariso
       const max=r.maxMismatchPercent??screen.maxMismatchPercent;if(mismatchPercent>max)issues.push({kind:'region-pixels',region:r.name,message:`Region pixel mismatch ${mismatchPercent.toFixed(3)}% exceeds ${max}%`});}
     regions.push({name:r.name,expected,actual,mismatchPercent});
   }
+  const assets=await checkDesignAssets(manifest,screen,dir);
+  issues.push(...assets.issues);regions.push(...assets.regions);
   for(const f of captured.fonts)if(!f.loaded)issues.push({kind:'font',resource:f.family,message:`Required web font ${f.family} has no loaded FontFace. Verify its source and weight. System fonts should not be listed in requiredFonts.`});
   for(const image of captured.brokenImages)issues.push({kind:'asset',resource:image.src,message:`Image failed to load: ${image.src}`});
   for(const message of captured.errors)issues.push({kind:'runtime',message});
@@ -121,6 +128,9 @@ export async function verify(root,name,{sessionId,format='simple',page,compariso
   const report=redactUrls({version:1,colorFormat:COLOR_FORMAT,runId,screen:name,url:screen.url,viewport:screen.viewport,pass,pixels,regions,issues,...captured,session:sessionResult,...(comparison?{comparison}:{ }),
     coverage:{mappedRegions:screen.regions.length,geometryRegions:screen.regions.filter((_,i)=>expectations[i].rect).length,styleRegions:expectations.filter(e=>Object.keys(e.styles).length).length,
       unverifiedChecks:issues.filter(issue=>issue.kind==='coverage').length,
+      textRegions:expectations.filter(e=>e.text!==undefined).length,assetRegions:assets.regions.length,
+      ignoredTextRegions:screen.regions.filter(r=>r.textMode==='ignore').map(r=>r.name),
+      assetCoverage:manifest?'figma-bounds-and-configured-regions':'configured-regions-and-global-pixels',
       ...(manifest?{unmappedFigmaTextNodes:manifest.nodes.filter(node=>node.type==='TEXT'&&!screen.regions.some(region=>region.nodeId?.replace('-',':')===node.id)).length}:{}),
       note:'Pass applies only to configured checks. Unmapped text is not property-checked; selectors and design values must be supplied. No accessibility audit, functional suite, semantic source-asset verification, or inferred responsive design.'}});
   const findingDocument=await writeFindings(dir,report,redactUrls(screen),{cropImages:format==='html'});
