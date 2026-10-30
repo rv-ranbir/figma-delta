@@ -26,7 +26,7 @@
     "test:package": "node scripts/verify-package.js"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.32.1",
+    "@modelcontextprotocol/sdk": "1.32.2",
     "culori": "4.0.2",
     "pixelmatch": "7.2.0",
     "playwright": "1.64.1",
