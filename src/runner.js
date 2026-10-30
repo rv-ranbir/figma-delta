@@ -7,7 +7,9 @@ import { capture } from './capture.js';
 import { compare, compareRegion } from './compare.js';
 import { writeReport } from './report.js';
 import { writeFindings, compactReport } from './findings.js';
-import { compareStyle } from './properties.js';
+import { compareMeasuredStyle } from './properties.js';
+import { designProperties } from './design-properties.js';
+import { flatten } from './figma.js';
 import { writeSimpleReport } from './simple-report.js';
 import { normalizeStyles, isColorProperty, COLOR_FORMAT } from './colors.js';
 import { redactUrls } from './privacy.js';
@@ -20,37 +22,43 @@ export async function manifestFor(root,screen){
   if(!screen.figmaUrl)return null;
   const m=await readJson(path.join(snapshotDir(root,screen.name),'manifest.json'));
   if(m.source!==screen.figmaUrl)throw Error('Figma URL changed. Sync the new reference explicitly before verification.');
+  if(m.nodes.some(node=>node.paintMetadataVersion!==1)){
+    // Recover metadata from the same saved export, never from a moving remote design.
+    let recovered=new Map();
+    try{
+      const raw=await readJson(path.join(snapshotDir(root,screen.name),'design.json'));
+      const document=raw.nodes?.[m.nodeId]?.document;
+      if(document&&raw.version===m.version)recovered=new Map(flatten(document).map(node=>[node.id,node]));
+    }catch(error){if(error.code!=='ENOENT'&&!(error instanceof SyntaxError))throw error;}
+    const keys=['characterStyleOverrides','styleOverrideTable','opacity','blendMode','effects','ancestorPaintUnsupported','paintMetadataVersion'];
+    m.nodes=m.nodes.map(node=>node.paintMetadataVersion===1?node:{...node,...Object.fromEntries(keys.map(key=>[key,recovered.get(node.id)?.[key]])),paintMetadataAvailable:recovered.has(node.id)});
+  }
   return m;
 }
 export function regionExpectations(region,manifest){
   let node;if(region.nodeId){node=manifest?.nodes.find(n=>n.id===region.nodeId.replace('-',':'));if(!node)throw Error(`Region ${region.name}: Figma node ${region.nodeId} is absent from snapshot`);}
-  const styles={};
-  if(node?.style){const s=node.style;if(s.fontFamily)styles.fontFamily=s.fontFamily;if(s.fontSize!==undefined)styles.fontSize=s.fontSize+'px';if(s.fontWeight!==undefined)styles.fontWeight=String(s.fontWeight);if(s.lineHeightUnit==='PIXELS'&&s.lineHeightPx!==undefined)styles.lineHeight=s.lineHeightPx+'px';}
-  const fills=Array.isArray(node?.fills)?node.fills.filter(fill=>fill.visible!==false&&(fill.opacity??1)>0):[];
-  if(fills.length===1&&fills[0].type==='SOLID'&&fills[0].color){
-    const fill=fills[0];const c=fill.color;const channels=[c.r,c.g,c.b];
-    const alpha=(c.a??1)*(fill.opacity??1);
-    const property=node.type==='TEXT'?'color':['FRAME','COMPONENT','COMPONENT_SET','INSTANCE','RECTANGLE'].includes(node.type)?'backgroundColor':null;
-    if(property&&channels.every(Number.isFinite))styles[property]=`color(srgb ${channels.join(' ')} / ${alpha})`;
-  }
+  const {styles,unavailable}=designProperties(node);
   if(Number.isFinite(node?.cornerRadius))styles.borderRadius=node.cornerRadius+'px';
   if(['HORIZONTAL','VERTICAL'].includes(node?.layoutMode)){
     for(const key of ['paddingTop','paddingRight','paddingBottom','paddingLeft'])if(Number.isFinite(node[key]))styles[key]=node[key]+'px';
     if(node.primaryAxisAlignItems!=='SPACE_BETWEEN'&&node.layoutWrap!=='WRAP'&&Number.isFinite(node.itemSpacing)&&node.itemSpacing>=0)styles[node.layoutMode==='HORIZONTAL'?'columnGap':'rowGap']=node.itemSpacing+'px';
   }
-  return {rect:region.rect??node?.rect,...normalizeStyles({...styles,...region.styles})};
+  for(const property of Object.keys(region.styles??{}))delete unavailable[property];
+  return {rect:region.rect??node?.rect,...normalizeStyles({...styles,...region.styles}),unavailable};
 }
 export function checkGeometry(region,actual,expected,tolerance){
   if(actual.error)return [{kind:'element',region:region.name,message:actual.error}];
   const issues=[];
+  for(const [property,reason] of Object.entries(expected.unavailable??{}))issues.push({kind:'coverage',region:region.name,property,reason,message:`${property} could not be verified: ${reason}`});
   if(expected.rect){for(const key of ['x','y','width','height']){const delta=actual.rect[key]-expected.rect[key];if(Math.abs(delta)>tolerance)issues.push({kind:'geometry',region:region.name,property:key,expected:expected.rect[key],actual:actual.rect[key],delta,message:`${key}: expected ${expected.rect[key]}px, actual ${Number(actual.rect[key].toFixed(2))}px (Δ ${Number(delta.toFixed(2))}px)`});}}
   for(const [key,val] of Object.entries(expected.styles)){
-    const value=actual.styles[key];
-    const comparison=compareStyle(key,val,value);
+    if(expected.unavailable?.[key])continue;
+    const comparison=compareMeasuredStyle(actual,key,val),value=comparison.value;
+    if(comparison.reason){issues.push({kind:'coverage',region:region.name,property:key,expected:val,actual:value,reason:comparison.reason,message:`${key} could not be verified: ${comparison.reason}`});continue;}
     if(!comparison.matches){
       const color=isColorProperty(key),desired=color?comparison.expectedColor:val,observed=color?comparison.actualColor:value;
       issues.push({kind:'style',region:region.name,property:key,expected:desired,actual:observed,
-        ...(color?{colorFormat:COLOR_FORMAT,expectedRaw:expected.rawStyles?.[key]??val,actualRaw:actual.rawStyles?.[key]??value}:{}),
+        ...(color?{colorFormat:COLOR_FORMAT,expectedRaw:expected.rawStyles?.[key]??val,actualRaw:value}:{}),
         message:comparison.method==='color-unavailable'?`${key}: color normalization unavailable; inspect raw values`:`${key}: expected ${desired}, actual ${observed??'unavailable'}`});
     }
   }return issues;
@@ -111,8 +119,10 @@ export async function verify(root,name,{sessionId,format='simple',page,compariso
       nextAction:pass?'Complete: report configured checks and remaining coverage limits.':session.status==='active'?'Inspect images and fix the largest evidenced root cause, then verify with this sessionId.':'STOP: retain reports and summarize unresolved issues. Review your checkpoint before reverting only your own edits.'};
   }
   const report=redactUrls({version:1,colorFormat:COLOR_FORMAT,runId,screen:name,url:screen.url,viewport:screen.viewport,pass,pixels,regions,issues,...captured,session:sessionResult,...(comparison?{comparison}:{ }),
-    coverage:{geometryRegions:screen.regions.filter((_,i)=>expectations[i].rect).length,styleRegions:expectations.filter(e=>Object.keys(e.styles).length).length,
-      note:'Pass applies only to configured checks. No accessibility audit, functional suite, semantic source-asset verification, or inferred responsive design.'}});
+    coverage:{mappedRegions:screen.regions.length,geometryRegions:screen.regions.filter((_,i)=>expectations[i].rect).length,styleRegions:expectations.filter(e=>Object.keys(e.styles).length).length,
+      unverifiedChecks:issues.filter(issue=>issue.kind==='coverage').length,
+      ...(manifest?{unmappedFigmaTextNodes:manifest.nodes.filter(node=>node.type==='TEXT'&&!screen.regions.some(region=>region.nodeId?.replace('-',':')===node.id)).length}:{}),
+      note:'Pass applies only to configured checks. Unmapped text is not property-checked; selectors and design values must be supplied. No accessibility audit, functional suite, semantic source-asset verification, or inferred responsive design.'}});
   const findingDocument=await writeFindings(dir,report,redactUrls(screen),{cropImages:format==='html'});
   report.findingsVersion=findingDocument.schemaVersion;report.findings=findingDocument.findings;
   report.format=format;

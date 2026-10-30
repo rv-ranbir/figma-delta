@@ -4,7 +4,7 @@ import crypto from 'node:crypto';
 import sharp from 'sharp';
 import { writeJson } from './config.js';
 import { propertyComparisons, compareStyle } from './properties.js';
-import { normalizeColor, isColorProperty, COLOR_FORMAT } from './colors.js';
+import { normalizePaint, isColorProperty, COLOR_FORMAT } from './colors.js';
 
 const imageNames=['reference','actual','diff','overlay'];
 const identity=parts=>crypto.createHash('sha256').update(JSON.stringify(parts)).digest('hex').slice(0,24);
@@ -22,12 +22,13 @@ function cropBounds(region,viewport){
 function measurement(issue,region,screen,configured,report){
   const tolerance=configured?.tolerancePx??screen.tolerancePx;
   switch(issue.kind){
+    case 'coverage':return {property:issue.property,reason:issue.reason,expected:{operator:'unavailable',value:issue.expected??null},actual:{value:issue.actual??null}};
     case 'geometry':return {property:issue.property,expected:{operator:'within',value:issue.expected,unit:'px',tolerance},actual:{value:issue.actual,unit:'px'},delta:issue.delta};
     case 'style':{
       if(isColorProperty(issue.property)){
-        const desired=normalizeColor(issue.expected),observed=normalizeColor(issue.actual);
+        const desired=normalizePaint(issue.property,issue.expected),observed=normalizePaint(issue.property,issue.actual);
         return {property:issue.property,colorFormat:COLOR_FORMAT,
-          expected:{operator:desired!==null&&observed!==null?'color-equals':'color-unavailable',value:desired,rawValue:issue.expectedRaw??issue.expected??null},
+          expected:{operator:compareStyle(issue.property,issue.expected,issue.actual).method,value:desired,rawValue:issue.expectedRaw??issue.expected??null},
           actual:{value:observed,rawValue:issue.actualRaw??issue.actual??null}};
       }
       if(issue.property==='fontFamily')return {property:issue.property,expected:{operator:'primary-font-family-equals',value:issue.expected},actual:{value:issue.actual??null}};
@@ -77,8 +78,8 @@ export async function writeFindings(dir,report,screen,{cropImages=true}={}){
     const pixelBased=['pixels','region-pixels'].includes(issue.kind);
     const finding={id,occurrences:1,category:issue.kind,summary:issue.message,target,...measurement(issue,region,screen,configured,report),
       properties:region?propertyComparisons(region.actual,region.expected,configured?.tolerancePx??screen.tolerancePx):[],
-      evidenceType:pixelBased?'pixel-comparison':'measured-check',evidence,hypotheses:[],
-      guidance:pixelBased?'Inspect reference, actual, diff and overlay. Pixel differences do not establish a semantic defect or a CSS root cause.':'Inspect the measured difference and mapped element before editing. Reverify after the change.',
+      evidenceType:issue.kind==='coverage'?'coverage-gap':pixelBased?'pixel-comparison':'measured-check',evidence,hypotheses:[],
+      guidance:issue.kind==='coverage'?'Resolve the comparison coverage or review visually. An unverified check is not proof of a design defect.':pixelBased?'Inspect reference, actual, diff and overlay. Pixel differences do not establish a semantic defect or a CSS root cause.':'Inspect the measured difference and mapped element before editing. Reverify after the change.',
       review:{status:'unreviewed',severity:null,comment:null}};
     findings.push(finding);byId.set(id,finding);
   }
@@ -91,12 +92,13 @@ export async function writeFindings(dir,report,screen,{cropImages=true}={}){
 // Compact agent-facing projection: keep failed checks, not repeated matches or image payloads.
 export function compactReport(report){
   const source=report.findings??(report.issues??[]).map(issue=>({category:issue.kind,target:{region:issue.region??null,selector:report.regions?.find(r=>r.name===issue.region)?.actual?.selector??null,resource:issue.resource??null},property:issue.property,
-    expected:{value:issue.expected??null,rawValue:issue.expectedRaw},actual:{value:issue.actual??issue.message,rawValue:issue.actualRaw},delta:issue.delta}));
+    expected:{value:issue.expected??null,rawValue:issue.expectedRaw},actual:{value:issue.actual??issue.message,rawValue:issue.actualRaw},delta:issue.delta,reason:issue.reason}));
   const differences=source.map(finding=>({id:finding.id??null,category:finding.category,region:finding.target?.region??null,selector:finding.target?.selector??null,
     ...(finding.target?.nodeId?{nodeId:finding.target.nodeId}:{}),...(finding.target?.resource?{resource:finding.target.resource}:{}),
-    property:finding.property??null,expected:isColorProperty(finding.property)?normalizeColor(finding.expected?.value):finding.expected?.value??null,actual:isColorProperty(finding.property)?normalizeColor(finding.actual?.value):finding.actual?.value??null,
-    ...(isColorProperty(finding.property)?{colorFormat:COLOR_FORMAT,...(normalizeColor(finding.expected?.value)===null?{expectedRaw:finding.expected?.rawValue??finding.expected?.value??null}:{}),...(normalizeColor(finding.actual?.value)===null?{actualRaw:finding.actual?.rawValue??finding.actual?.value??null}:{})}:{}),
-    ...(isColorProperty(finding.property)?{comparison:normalizeColor(finding.expected?.value)!==null&&normalizeColor(finding.actual?.value)!==null?'color-equals':'color-unavailable'}:finding.expected?.operator?{comparison:finding.expected.operator}:{}),
+    ...(finding.reason?{reason:finding.reason}:{}),
+    property:finding.property??null,expected:isColorProperty(finding.property)?normalizePaint(finding.property,finding.expected?.value):finding.expected?.value??null,actual:isColorProperty(finding.property)?normalizePaint(finding.property,finding.actual?.value):finding.actual?.value??null,
+    ...(isColorProperty(finding.property)?{colorFormat:COLOR_FORMAT,...(normalizePaint(finding.property,finding.expected?.value)===null?{expectedRaw:finding.expected?.rawValue??finding.expected?.value??null}:{}),...(normalizePaint(finding.property,finding.actual?.value)===null?{actualRaw:finding.actual?.rawValue??finding.actual?.value??null}:{})}:{}),
+    ...(finding.category==='coverage'?{comparison:'unavailable'}:isColorProperty(finding.property)?{comparison:compareStyle(finding.property,finding.expected?.value,finding.actual?.value).method}:finding.expected?.operator?{comparison:finding.expected.operator}:{}),
     ...(finding.expected?.unit??finding.actual?.unit?{unit:finding.expected?.unit??finding.actual?.unit}:{}),
     ...(finding.expected?.tolerance!==undefined?{tolerance:finding.expected.tolerance}:{}),
     ...(finding.delta!==undefined?{delta:finding.delta}:{}),...(finding.actual?.count!==undefined&&finding.actual.count!==null?{count:finding.actual.count}:{}),

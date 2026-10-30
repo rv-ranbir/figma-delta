@@ -8,7 +8,7 @@ import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {fileURLToPath} from 'node:url';
 const cli=fileURLToPath(new URL('../src/cli.js',import.meta.url));
-async function fixture(t){const root=await fs.mkdtemp(path.join(os.tmpdir(),'delta compare 测试-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));await sharp({create:{width:320,height:200,channels:4,background:'white'}}).png().toFile(path.join(root,'frame.png'));return root;}
+async function fixture(t){const root=await fs.mkdtemp(path.join(os.tmpdir(),'delta compare 测试-'));t.after(()=>fs.rm(root,{recursive:true,force:true,maxRetries:5,retryDelay:100}));await sharp({create:{width:320,height:200,channels:4,background:'white'}}).png().toFile(path.join(root,'frame.png'));return root;}
 
 test('CLI prepares an isolated comparison from a URL and PNG without init or a config file',async t=>{
  const root=await fixture(t);

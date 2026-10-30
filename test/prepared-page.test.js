@@ -7,8 +7,8 @@ import http from 'node:http';
 import {chromium} from 'playwright';
 import {beginSession} from '../src/runner.js';
 async function fixture(t,viewport={width:320,height:200}){
- const root=await fs.mkdtemp(path.join(os.tmpdir(),'delta prepared-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));
- const server=http.createServer((req,res)=>{res.setHeader('content-type','text/html');res.end('<html><body style="margin:0;min-height:1000px"><h1 id="review" style="color:black">Review</h1><input value="sample text"><dialog>Open review</dialog></body></html>');});await new Promise(r=>server.listen(0,'127.0.0.1',r));t.after(()=>new Promise(r=>server.close(r)));
+ const root=await fs.mkdtemp(path.join(os.tmpdir(),'delta prepared-'));t.after(()=>fs.rm(root,{recursive:true,force:true,maxRetries:5,retryDelay:100}));
+ const server=http.createServer((req,res)=>{res.setHeader('content-type','text/html');res.end('<html><body style="margin:0;min-height:1000px"><h1 id="review" style="color:black">Review</h1><input value="sample text"><dialog>Open review</dialog></body></html>');});await new Promise(r=>server.listen(0,'127.0.0.1',r));t.after(()=>{server.closeAllConnections();return new Promise(r=>server.close(r));});
  const browser=await chromium.launch();t.after(()=>{t.mock.restoreAll();return browser.close();});const context=await browser.newContext({viewport,locale:'fr-FR',timezoneId:'Europe/Paris',colorScheme:'dark'});const page=await context.newPage();await page.goto(`http://127.0.0.1:${server.address().port}/review?token=SECRET`);
  await page.evaluate(()=>{sessionStorage.setItem('wizard','review');localStorage.setItem('credential','STORAGE_SECRET');document.querySelector('dialog').show();document.querySelector('input').focus();document.querySelector('input').setSelectionRange(1,5);window.scrollTo(0,100);});
  await page.screenshot({path:path.join(root,'frame.png'),animations:'allow',caret:'initial',scale:'css'});

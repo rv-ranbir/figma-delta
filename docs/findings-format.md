@@ -33,13 +33,13 @@ The export has `schemaVersion: 1`, run ID, screen, URL, viewport, capture time, 
 ## Each finding
 
 - `id`: deterministic identity based on screen, URL, region, selector, node ID, check kind/property and resource/error subject. It stays stable when measured values, run IDs or issue order change. Changing a mapping or URL can change the ID. IDs alone do not establish equivalence across changed design baselines.
-- `category`: `geometry`, `style`, `region-pixels`, `pixels`, `element`, `font`, `asset`, or `runtime`.
+- `category`: `geometry`, `style`, `coverage`, `region-pixels`, `pixels`, `element`, `font`, `asset`, or `runtime`. A `coverage` finding means a configured/mapped property could not be verified; it is not a confirmed design defect. It includes a `reason`, uses `comparison: "unavailable"` in compact JSON, and prevents a clean pass until resolved or reviewed outside the automated check.
 - `occurrences`: number of identical logical failures grouped under this ID, such as repeated runtime errors or multiple broken images sharing one URL. The original `issues` array remains ungrouped.
 - `summary`: the failed check's evidence statement.
 - `target`: region, CSS selector, Figma node ID and resource, with `null` for unavailable mappings. It does not guess a source file or line.
 - `property`, `expected`, `actual`, and signed `delta` for geometry/numeric CSS: measurements and configured comparison values. Geometry uses CSS pixels and its configured tolerance. Pixels use mismatch percentage and the configured maximum; the pixelmatch color threshold and anti-aliasing behavior are unchanged. Numeric CSS lengths use `operator: "within"`, tolerance 0.5px and preserve original strings as `rawValue`. Font families use `operator: "primary-font-family-equals"` (quotes removed, first family only, case-insensitive). Color values use `color-equals` after conversion to extended sRGB, as described below. Unresolved colors use `color-unavailable` and cannot pass through string equality. Other styles also use exact strings.
-- `properties`: element-level rows with `property`, readable `label`, `group`, raw `expected` and `actual`, comparison method/tolerance/delta when applicable, and `status`: `match`, `different`, `not-specified` or `unavailable`. Missing reference values are not guessed and are not passes. Rows apply to the configured element, not every descendant.
-- `evidenceType`: `pixel-comparison` or `measured-check`. A percentage proves a rendering difference, not its cause, semantic meaning, accessibility impact or severity.
+- `properties`: element-level rows with `property`, readable `label`, `group`, raw `expected` and `actual`, comparison method/tolerance/delta when applicable, and `status`: `match`, `different`, `not-specified` or `unavailable`. Missing reference values are not guessed. Text color and typography inspect measurable DOM text runs within the mapped element; a failing run supplies the reported value. Box geometry and spacing apply to the mapped element.
+- `evidenceType`: `pixel-comparison`, `measured-check` or `coverage-gap`. A percentage proves a rendering difference, not its cause, semantic meaning, accessibility impact or severity.
 - `evidence`: `scope`, `coordinateSpace: "capture-css-pixels"`, crop `rect`, and relative paths in `images.reference`, `actual`, `diff`, `overlay`. Crops use the union of known expected and actual bounds, rounded outward and clipped to the capture. Missing elements use reference bounds when known; unmapped or wholly offscreen bounds fall back to page evidence. Shared-region findings reuse image files. Images are never scaled. Capture scale is 1 CSS pixel per image pixel. Masks exclude comparison areas; they are not privacy redactions of source screenshots.
 - `hypotheses`: initially empty. The deterministic verifier does not invent CSS diagnoses.
 - `guidance`: investigation instructions, not a prescribed code change.
@@ -50,6 +50,14 @@ The export has `schemaVersion: 1`, run ID, screen, URL, viewport, capture time, 
 Capture records computed font/color/background/border properties, margin and padding (shorthand and individual sides), and gap/row-gap/column-gap. Additional configured CSS property names are also measured. Explicit expectations go in region `styles`, using computed CSS values or supported CSS color expressions.
 
 For synced Figma node mappings, expectations also derive a single visible solid text/background fill, corner radius, and explicit auto-layout padding. Fixed horizontal item spacing maps to `columnGap`; vertical spacing maps to `rowGap`. Space-between, wrapping, negative spacing, mixed fills and vector paint are not guessed into equivalent CSS. Explicit configured styles override derived values.
+
+Uniform Figma rich-text overrides supply color, font family, size, weight and letter spacing; mixed or unsupported mapped text properties produce coverage findings. Browser text color uses resolved text fill (including `-webkit-text-fill-color`), rather than the container's inherited color alone. Custom classes and CSS variables work through computed styles. Explicit SVG `fill` and `stroke` colors use the same canonical format.
+
+SVG `fill: none` and `stroke: none` preserve the `none` value and use `paint-equals`; absence of paint is distinct from a transparent color.
+
+Opacity, filters, blending, layered backgrounds, text strokes, styled first-letter/first-line, generated content, native control text and shadow/custom element text may require visual review. These cases produce coverage findings when they affect a checked property. Map a smaller ordinary text element where possible; Delta does not guess composited pixel colors or align mixed rich-text runs by position. A tiny text difference can stay below the pixel budget, so exact checks still require selector mappings and design values.
+
+`coverage` records mapped region counts, unverified check counts and (for Figma snapshots) text nodes without direct mappings. Unmapped nodes are not automatically checked. Older snapshots recover missing rich-text and ancestor paint metadata from the same saved raw design version, without changing files or fetching a newer design. If recovery is unavailable, resync explicitly before a new repair session; existing sessions remain pinned and may reject changed expectation metadata.
 
 Figma positions do not establish CSS margins. A screenshot cannot distinguish margin from padding or gap; supply known expected CSS margins when needed. This is especially relevant to older PNG-only benchmarks: they may have browser color measurements but no expected reference color. Reports show that coverage gap instead of making a color diagnosis from pixels.
 
@@ -74,7 +82,7 @@ Open `report.html`, search/select a finding, and inspect the property difference
 
 **Copy developer ticket** includes page/viewport, expected/actual properties, selector, resource/error, evidence paths and review notes. **Copy agent instructions** adds MCP image calls and session/run checks. Clipboard failure opens selectable text for manual copying. Nothing is sent to a tracker or agent automatically. Keep the JSON with its evidence folder when moving/sharing; image paths are relative to that report directory.
 
-The full QA HTML embeds evidence for offline viewing; its download link requires the sibling `findings.json` file. Simple HTML instead links evidence files. Keep the report directory together for complete evidence/download access.
+Both HTML modes use adjacent evidence files and JSON downloads. Keep the report directory together when sharing.
 
 ## Agent workflow
 
