@@ -3,7 +3,7 @@ export function measureElement(el,extraProperties){
   const b=el.getBoundingClientRect(),css=getComputedStyle(el);
   const textKeys=['color','fontFamily','fontSize','fontWeight','lineHeight','letterSpacing'];
   const read=style=>Object.fromEntries(textKeys.map(key=>[key,style[key]]));
-  const unavailable={};
+  const unavailable={};let textContentReason;
   const ancestor=element=>element.parentElement??element.getRootNode()?.host;
   const hiddenByAncestor=element=>{
     for(let current=element;current;current=ancestor(current)){
@@ -34,7 +34,7 @@ export function measureElement(el,extraProperties){
   const textRuns=[],seen=new Set();let visited=0;
   const walker=document.createTreeWalker(el,NodeFilter.SHOW_TEXT);
   while(walker.nextNode()){
-    if(++visited>2000){for(const key of textKeys)unavailable[key]='Text inspection limit reached; map a smaller text element.';break;}
+    if(++visited>2000){textContentReason='Text inspection limit reached; map a smaller text element.';for(const key of textKeys)unavailable[key]=textContentReason;break;}
     const node=walker.currentNode;if(!node.textContent.trim())continue;
     const parent=node.parentElement,s=getComputedStyle(parent);
     if(s.visibility!=='visible'||hiddenByAncestor(parent))continue;
@@ -55,17 +55,19 @@ export function measureElement(el,extraProperties){
   function* elements(){yield el;const walker=document.createTreeWalker(el,NodeFilter.SHOW_ELEMENT);while(walker.nextNode())yield walker.currentNode;}
   let inspected=0;
   for(const element of elements()){
-    if(++inspected>2000){for(const key of textKeys)unavailable[key]='Text inspection limit reached; map a smaller text element.';break;}
+    if(++inspected>2000){textContentReason='Text inspection limit reached; map a smaller text element.';for(const key of textKeys)unavailable[key]=textContentReason;break;}
     const s=getComputedStyle(element);
     if(s.visibility!=='visible'||hiddenByAncestor(element))continue;
     const nativeText=element.matches('textarea,select')||(element.localName==='input'&&!['checkbox','radio','range','color','hidden','image'].includes(element.type));
     if(nativeText||element.shadowRoot||element.localName.includes('-')){
-      for(const key of textKeys)unavailable[key]='Native control or shadow/custom element text requires a dedicated text mapping or visual review.';
+      textContentReason='Native control or shadow/custom element text requires a dedicated text mapping or visual review.';
+      for(const key of textKeys)unavailable[key]=textContentReason;
     }
     for(const pseudo of ['::before','::after']){
       const s=getComputedStyle(element,pseudo);
       if(s.content&&!['none','normal','""',"''"].includes(s.content)&&s.display!=='none'&&s.visibility==='visible'){
-        for(const key of textKeys)unavailable[key]='Generated pseudo-element content requires a dedicated text mapping or visual review.';
+        textContentReason='Generated pseudo-element content requires a dedicated text mapping or visual review.';
+        for(const key of textKeys)unavailable[key]=textContentReason;
       }
     }
     for(const pseudo of ['::first-letter','::first-line']){
@@ -74,5 +76,5 @@ export function measureElement(el,extraProperties){
     }
   }
   if(!textRuns.length)for(const key of textKeys)unavailable[key]='No measurable DOM text; map the rendered text element (native controls and canvas need visual review).';
-  return {rect:{x:b.x,y:b.y,width:b.width,height:b.height},styles,text:el.textContent?.trim().slice(0,200),textRuns,unavailable};
+  return {rect:{x:b.x,y:b.y,width:b.width,height:b.height},styles,text:el.textContent?.trim().slice(0,200),textRuns,unavailable,textContentReason};
 }

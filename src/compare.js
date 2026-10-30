@@ -30,16 +30,25 @@ export async function compare(reference,actual,out,{threshold=0.1,masks=[]}={}){
   return {width,height,mismatchCount,comparedPixels:total,maskedPixels:width*height-total,mismatchPercent:100*mismatchCount/total,hotspots:tiles.sort((a,b)=>b.changedPixels-a.changedPixels).slice(0,12)};
 }
 export async function compareRegion(reference,actual,rect,{threshold=0.1,masks=[]}={}){
-  const meta=await sharp(reference).metadata();
-  const left=Math.max(0,Math.floor(rect.x)),top=Math.max(0,Math.floor(rect.y));
-  const width=Math.min(meta.width,Math.ceil(rect.x+rect.width))-left,height=Math.min(meta.height,Math.ceil(rect.y+rect.height))-top;
-  if(rect.x<0||rect.y<0||rect.x+rect.width>meta.width+0.01||rect.y+rect.height>meta.height+0.01||width<=0||height<=0)throw Error('Region extends outside the reference');
-  const [a,b]=await Promise.all([reference,actual].map(p=>sharp(p).flatten({background:'#fff'}).ensureAlpha().extract({left,top,width,height}).raw().toBuffer()));
-  let count=0;
-  for(let y=0;y<height;y++)for(let x=0;x<width;x++){
-    const masked=masks.some(r=>x+left>=Math.floor(r.x)&&x+left<Math.ceil(r.x+r.width)&&y+top>=Math.floor(r.y)&&y+top<Math.ceil(r.y+r.height));
-    if(masked){a.fill(255,(y*width+x)*4,(y*width+x)*4+4);b.fill(255,(y*width+x)*4,(y*width+x)*4+4);}else count++;
-  }
-  if(!count)throw Error('Region is fully masked');
-  return 100*pixelmatch(a,b,null,width,height,{threshold,includeAA:false})/count;
+  return (await createRegionComparator(reference,actual,{threshold,masks}))(rect);
+}
+
+// Decode once for many small design assets; each crop owns its masked buffers.
+export async function createRegionComparator(reference,actual,{threshold=0.1,masks=[]}={}){
+  const images=await Promise.all([reference,actual].map(file=>sharp(file).flatten({background:'#fff'}).ensureAlpha().raw().toBuffer({resolveWithObject:true})));
+  const meta=images[0].info;
+  if(meta.width!==images[1].info.width||meta.height!==images[1].info.height)throw Error('Region image dimensions differ; no auto-resize allowed');
+  return rect=>{
+    const left=Math.max(0,Math.floor(rect.x)),top=Math.max(0,Math.floor(rect.y));
+    const width=Math.min(meta.width,Math.ceil(rect.x+rect.width))-left,height=Math.min(meta.height,Math.ceil(rect.y+rect.height))-top;
+    if(rect.x<0||rect.y<0||rect.x+rect.width>meta.width+0.01||rect.y+rect.height>meta.height+0.01||width<=0||height<=0)throw Error('Region extends outside the reference');
+    const [a,b]=images.map(image=>{const crop=Buffer.alloc(width*height*4);for(let y=0;y<height;y++)image.data.copy(crop,y*width*4,((top+y)*meta.width+left)*4,((top+y)*meta.width+left+width)*4);return crop;});
+    let count=0;
+    for(let y=0;y<height;y++)for(let x=0;x<width;x++){
+      const masked=masks.some(r=>x+left>=Math.floor(r.x)&&x+left<Math.ceil(r.x+r.width)&&y+top>=Math.floor(r.y)&&y+top<Math.ceil(r.y+r.height));
+      if(masked){a.fill(255,(y*width+x)*4,(y*width+x)*4+4);b.fill(255,(y*width+x)*4,(y*width+x)*4+4);}else count++;
+    }
+    if(!count)throw Error('Region is fully masked');
+    return 100*pixelmatch(a,b,null,width,height,{threshold,includeAA:false})/count;
+  };
 }

@@ -1,6 +1,6 @@
 {
   "name": "figma-delta",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Figma design comparison for QA, developers and AI agents",
   "type": "module",
   "main": "./src/api.js",

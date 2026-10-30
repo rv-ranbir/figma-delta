@@ -20,6 +20,7 @@ Compare Figma designs with a running web application. Review exact property diff
 | **AI agents** | Compact JSON, stable finding IDs, evidence paths and bounded verification sessions |
 
 - **Measure properties.** Compare mapped text colors, backgrounds, fonts, padding, margins and layout gaps.
+- **Check copy and small details.** Compare mapped text, inspect rendered fonts and text visibility, and check unmapped Figma vector/image bounds locally so small changes are not judged only against a full-page pixel budget.
 - **See gaps in coverage.** Text checks inspect rendered child text and text-fill overrides. Unsupported paints or mixed design values are reported as unverified, with reasons in HTML and JSON.
 - **Normalize colors.** Convert supported CSS color formats to shared extended sRGB, preserving alpha and converted wide-gamut channels.
 - **Work with existing projects.** The agent workflow follows applicable repository instructions, relevant skills and available MCP tools, and reuses existing components and design tokens.

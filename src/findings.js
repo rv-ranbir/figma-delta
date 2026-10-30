@@ -22,6 +22,7 @@ function cropBounds(region,viewport){
 function measurement(issue,region,screen,configured,report){
   const tolerance=configured?.tolerancePx??screen.tolerancePx;
   switch(issue.kind){
+    case 'content':case 'visibility':return {property:issue.property,reason:issue.reason,expected:{operator:issue.kind==='content'?'normalized-text-equals':'fully-visible',value:issue.expected},actual:{value:issue.actual}};
     case 'coverage':return {property:issue.property,reason:issue.reason,expected:{operator:'unavailable',value:issue.expected??null},actual:{value:issue.actual??null}};
     case 'geometry':return {property:issue.property,expected:{operator:'within',value:issue.expected,unit:'px',tolerance},actual:{value:issue.actual,unit:'px'},delta:issue.delta};
     case 'style':{
@@ -40,7 +41,7 @@ function measurement(issue,region,screen,configured,report){
     }
     case 'pixels':case 'region-pixels':return {property:'mismatchPercent',expected:{operator:'<=',value:configured?.maxMismatchPercent??screen.maxMismatchPercent,unit:'percent'},actual:{value:issue.kind==='pixels'?report.pixels.mismatchPercent:region?.mismatchPercent??null,unit:'percent'}};
     case 'element':return {property:'availability',expected:{operator:'equals',value:'one visible element'},actual:{value:region?.actual?.error??issue.message,count:region?.actual?.count??null}};
-    case 'font':return {property:'loaded',expected:{operator:'equals',value:true},actual:{value:false}};
+    case 'font':return issue.property==='renderedFontFamily'?{property:issue.property,expected:{operator:'rendered-font-family',value:issue.expected},actual:{value:issue.actual}}:{property:'loaded',expected:{operator:'equals',value:true},actual:{value:false}};
     case 'asset':return {property:'loaded',expected:{operator:'equals',value:true},actual:{value:false}};
     default:return {property:'runtimeError',expected:{operator:'equals',value:null},actual:{value:issue.message}};
   }
@@ -54,7 +55,7 @@ export async function writeFindings(dir,report,screen,{cropImages=true}={}){
   for(const issue of report.issues){
     const region=report.regions.find(r=>r.name===issue.region);
     const configured=screen.regions.find(r=>r.name===issue.region);
-    const target={region:issue.region??null,selector:configured?.selector??region?.actual?.selector??null,nodeId:configured?.nodeId??null,resource:issue.resource??null};
+    const target={region:issue.region??null,selector:configured?.selector??region?.actual?.selector??null,nodeId:configured?.nodeId??issue.nodeId??region?.nodeId??null,resource:issue.resource??null};
     // Include unmapped issue subjects but never mismatch values, order, or run identifiers.
     const subject=issue.resource??(['font','asset','runtime'].includes(issue.kind)?issue.message:null);
     const id='finding-'+identity([...(report.comparison?.id?[report.comparison.id]:[]),report.screen,report.url,target.region,target.selector,target.nodeId,issue.kind,issue.property??null,subject]);
@@ -77,7 +78,7 @@ export async function writeFindings(dir,report,screen,{cropImages=true}={}){
     }
     const pixelBased=['pixels','region-pixels'].includes(issue.kind);
     const finding={id,occurrences:1,category:issue.kind,summary:issue.message,target,...measurement(issue,region,screen,configured,report),
-      properties:region?propertyComparisons(region.actual,region.expected,configured?.tolerancePx??screen.tolerancePx):[],
+      properties:region&&region.source!=='figma-asset-bounds'?propertyComparisons(region.actual,region.expected,configured?.tolerancePx??screen.tolerancePx):[],
       evidenceType:issue.kind==='coverage'?'coverage-gap':pixelBased?'pixel-comparison':'measured-check',evidence,hypotheses:[],
       guidance:issue.kind==='coverage'?'Resolve the comparison coverage or review visually. An unverified check is not proof of a design defect.':pixelBased?'Inspect reference, actual, diff and overlay. Pixel differences do not establish a semantic defect or a CSS root cause.':'Inspect the measured difference and mapped element before editing. Reverify after the change.',
       review:{status:'unreviewed',severity:null,comment:null}};
