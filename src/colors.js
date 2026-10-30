@@ -1,6 +1,7 @@
 import { parse, converter } from 'culori';
 export const COLOR_FORMAT='srgb-css';
-export const isColorProperty=property=>/color$/i.test(property);
+export const isColorProperty=property=>/color$/i.test(property)||['fill','stroke'].includes(property);
+export const normalizePaint=(property,value)=>['fill','stroke'].includes(property)&&typeof value==='string'&&value.trim().toLowerCase()==='none'?'none':normalizeColor(value);
 const toRgb=converter('rgb');
 
 const channel=value=>Number(value.toFixed(6));
@@ -27,7 +28,7 @@ export function normalizeColor(value){
 export function normalizeStyles(styles={}){
   const normalized={...styles},rawStyles={};
   for(const [property,value] of Object.entries(styles))if(isColorProperty(property)){
-    rawStyles[property]=value;normalized[property]=normalizeColor(value);
+    rawStyles[property]=value;normalized[property]=normalizePaint(property,value);
   }
   return {styles:normalized,rawStyles};
 }

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import * as properties from '../src/properties.js';
 import { checkGeometry } from '../src/runner.js';
 import { compactReport } from '../src/findings.js';
+import { normalizeStyles } from '../src/colors.js';
 
 test('equivalent CSS colors normalize to a single sRGB color function with alpha',()=>{
  assert.equal(typeof properties.normalizeColor,'function');
@@ -25,6 +26,24 @@ test('alpha differences remain failures and unsupported colors never pass by str
  for(const value of ['var(--unknown)','currentColor','not-a-color']){
   assert.equal(properties.normalizeColor(value),null,value);
   const result=properties.compareStyle('color',value,value);assert.equal(result.matches,false);assert.equal(result.method,'color-unavailable');
+ }
+});
+
+test('explicit SVG fill and stroke expectations share canonical color comparison',()=>{
+ for(const property of ['fill','stroke']){
+  assert.equal(properties.compareStyle(property,'#f00','rgb(255, 0, 0)').matches,true);
+  const issue=checkGeometry({name:'icon'},{styles:{[property]:'rgb(0, 0, 255)'}},{styles:{[property]:'red'}},2)[0];
+  assert.equal(issue.expected,'color(srgb 1 0 0 / 1)');assert.equal(issue.actual,'color(srgb 0 0 1 / 1)');
+ }
+});
+
+test('SVG no-paint values survive normalization and differ from transparent paint',()=>{
+ for(const property of ['fill','stroke']){
+  const expected=normalizeStyles({[property]:'none'}),actual=normalizeStyles({[property]:'none'});
+  assert.deepEqual(checkGeometry({name:'icon'},actual,expected,2),[]);
+  assert.equal(properties.compareStyle(property,'none','transparent').matches,false);
+  const report={issues:checkGeometry({name:'icon'},actual,normalizeStyles({[property]:'red'}),2),regions:[]};
+  assert.equal(compactReport(report).differences[0].actual,'none');
  }
 });
 

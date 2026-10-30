@@ -1,5 +1,6 @@
 import { chromium } from 'playwright';
 import { inside } from './config.js';
+import { measureElement } from './measure-element.js';
 const pageErrors=new WeakMap();
 
 export async function openCapturePage(root,screen,{headless=true}={}){
@@ -42,14 +43,7 @@ export async function capture(root,screen,output,{page:livePage,passive=false}={
     for(const region of screen.regions){
       const locator=page.locator(region.selector);const count=await locator.count();
       if(count!==1){measures.push({name:region.name,selector:region.selector,error:count===0?'missing':'ambiguous selector',count});continue;}
-      const value=await locator.evaluate((el,extraProperties)=>{
-        const b=el.getBoundingClientRect();const css=getComputedStyle(el);
-        const styles={};for(const k of new Set(['fontFamily','fontSize','fontWeight','lineHeight','letterSpacing','color','backgroundColor','borderRadius','display','visibility','opacity','margin','marginTop','marginRight','marginBottom','marginLeft','padding','paddingTop','paddingRight','paddingBottom','paddingLeft','gap','rowGap','columnGap',...extraProperties])){
-          const value=css.getPropertyValue(k.replace(/[A-Z]/g,letter=>'-'+letter.toLowerCase()));
-          if(value)styles[k]=value;
-        }
-        return {rect:{x:b.x,y:b.y,width:b.width,height:b.height},styles,text:el.textContent?.trim().slice(0,200)};
-      },Object.keys(region.styles));
+      const value=await locator.evaluate(measureElement,Object.keys(region.styles));
       value.rect.x-=crop.x;value.rect.y-=crop.y;
       if(value.rect.width===0||value.rect.height===0||value.styles.display==='none'||value.styles.visibility==='hidden'||Number(value.styles.opacity)===0)value.error='hidden or zero-sized';
       measures.push({name:region.name,selector:region.selector,...value});

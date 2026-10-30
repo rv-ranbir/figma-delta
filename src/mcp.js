@@ -27,7 +27,7 @@ async function target(args){if(!args.comparisonId)return {root};const comparison
 const details=comparison=>comparison?{id:comparison.comparisonId,entryUrl:comparison.entryUrl,design:comparison.design}:undefined;
 server.registerTool('fidelity_prepare',{
  description:'Prepare an isolated comparison from app URL + Figma frame URL or local PNG. No init/config needed. Infers viewport and pins the reference. Figma REST needs FIGMA_ACCESS_TOKEN; otherwise use an exported PNG. Optional regions supply explicit selector/node/property mappings; never guess them. interactive:true opens a visible browser: the HUMAN navigates login, guards and wizard states, then confirms readiness before fidelity_verify. Never automate authentication, bypass guards or claim readiness without the user. Reuse comparisonId to reopen an existing pinned comparison. This does not edit app code or begin a repair session.',
- inputSchema:{...comparisonInput.innerType().shape,url:comparisonInput.innerType().shape.url.optional(),interactive:z.boolean().optional(),...scope},annotations:{readOnlyHint:false,destructiveHint:false}
+ inputSchema:{...comparisonInput.shape,url:comparisonInput.shape.url.optional(),interactive:z.boolean().optional(),...scope},annotations:{readOnlyHint:false,destructiveHint:false}
 },guard(async args=>{
  const {comparisonId,...input}=args;
  if(comparisonId&&Object.keys(input).some(key=>key!=='interactive'&&input[key]!==undefined&&!(Array.isArray(input[key])&&input[key].length===0)&&!(key==='readySelector'&&input[key]==='body')))throw Error('A saved comparison is pinned. Supply comparisonId and optional interactive only; prepare a new comparison for different inputs.');

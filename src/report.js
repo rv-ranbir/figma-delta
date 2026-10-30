@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { inside } from './config.js';
 import { propertyComparisons } from './properties.js';
-import { normalizeColor, isColorProperty } from './colors.js';
+import { normalizePaint, isColorProperty } from './colors.js';
 
 const escape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const name=value=>String(value??'Page').replace(/[-_]/g,' ').replace(/^./,c=>c.toUpperCase());
@@ -12,19 +12,19 @@ const properties={x:'horizontal position',y:'vertical position',width:'width',he
 function propertyValue(value,row){
   if(value===null||value===undefined)return '<span class="muted">Not captured</span>';
   const text=String(value)+(row.group==='geometry'?'px':'');
-  const color=isColorProperty(row.property)?normalizeColor(value):null;
-  return color?`<span class="color-value"><span class="color-swatch" style="background:${color}" aria-hidden="true"></span>${escape(color)}</span>`:escape(text);
+  const color=isColorProperty(row.property)?normalizePaint(row.property,value):null;
+  return color&&color!=='none'?`<span class="color-value"><span class="color-swatch" style="background:${color}" aria-hidden="true"></span>${escape(color)}</span>`:escape(text);
 }
 
 function propertyTable(rows,pixelBased){
-  const displayed=rows.filter(row=>row.expected!==null||row.expectedRaw!=null||['color','margin','padding','gap'].includes(row.property));
+  const displayed=rows.filter(row=>row.expected!==null||row.expectedRaw!=null||row.status==='unavailable'||['color','margin','padding','gap'].includes(row.property));
   if(!displayed.length)return `<section class="property-section"><h3>Property-level comparison</h3><p class="muted">${pixelBased?'No element mapping is available. The images show a difference, but there are no exact design properties to compare.':'This check has no element-style mapping. Review the recorded resource or error above.'}</p></section>`;
   const differences=displayed.filter(row=>['different','unavailable'].includes(row.status));
   const matches=displayed.filter(row=>row.status==='match');
   const missing=displayed.filter(row=>row.status==='not-specified');
   const labels={match:'Matches',different:'Differs','not-specified':'No design value',unavailable:'Not captured'};
   const table=list=>`<div class="table-scroll"><table class="property-table"><thead><tr><th>Property</th><th>Design expects</th><th>Browser shows</th><th>Result</th></tr></thead><tbody>${list.map(row=>`<tr class="property-${row.status}"><th scope="row">${escape(row.label)}</th><td>${row.expected===null?`<span class="muted">${row.expectedRaw!=null?'Unresolved color: '+escape(row.expectedRaw):'Not provided'}</span>`:propertyValue(row.expected,row)}</td><td>${propertyValue(row.actual,row)}</td><td><span class="property-result">${labels[row.status]}</span>${row.delta&&row.status==='different'?`<small>${row.delta>0?'+':''}${number(row.delta)}${row.unit??''}</small>`:''}</td></tr>`).join('')}</tbody></table></div>`;
-  return `<section class="property-section"><h3>What differs?</h3><p class="muted">${differences.length?`${differences.length} measured property difference${differences.length===1?'':'s'}.` : pixelBased?'The image differs, but the mapped properties do not establish an exact cause.':'No mapped property difference was found.'}</p>${differences.length?table(differences):''}${matches.length?`<details class="property-extra"><summary>${matches.length} properties match</summary>${table(matches)}</details>`:''}${missing.length?`<details class="property-extra"><summary>Design values missing: ${escape(missing.map(row=>row.label.toLowerCase()).join(', '))}</summary><p class="muted">These are browser measurements only. Supply reference values to compare them.</p>${table(missing)}</details>`:''}<p class="property-note">Positions are capture coordinates, not CSS margins. Color and spacing checks apply to the mapped element, not every child.</p></section>`;
+  return `<section class="property-section"><h3>What differs?</h3><p class="muted">${differences.length?`${differences.length} different or unverified propert${differences.length===1?'y':'ies'}.` : pixelBased?'The image differs, but the mapped properties do not establish an exact cause.':'No mapped property difference was found.'}</p>${differences.length?table(differences):''}${matches.length?`<details class="property-extra"><summary>${matches.length} properties match</summary>${table(matches)}</details>`:''}${missing.length?`<details class="property-extra"><summary>Design values missing: ${escape(missing.map(row=>row.label.toLowerCase()).join(', '))}</summary><p class="muted">These are browser measurements only. Supply reference values to compare them.</p>${table(missing)}</details>`:''}<p class="property-note">Positions are capture coordinates, not CSS margins. Text properties inspect measurable text runs inside the mapped element; box spacing applies to the mapped element.</p></section>`;
 }
 
 function valueText(measurement){
@@ -37,10 +37,13 @@ function valueText(measurement){
 }
 
 export function describeFinding(finding){
-  if(isColorProperty(finding.property))finding={...finding,...Object.fromEntries(['expected','actual'].map(key=>[key,{...finding[key],value:normalizeColor(finding[key]?.value)??`Unresolved color: ${finding[key]?.rawValue??finding[key]?.value??'missing'}`}]))};
+  if(isColorProperty(finding.property))finding={...finding,...Object.fromEntries(['expected','actual'].map(key=>[key,{...finding[key],value:normalizePaint(finding.property,finding[key]?.value)??`Unresolved color: ${finding[key]?.rawValue??finding[key]?.value??'missing'}`}]))};
   const region=name(finding.target.region);
   let title,description;
-  if(['pixels','region-pixels'].includes(finding.category)){
+  if(finding.category==='coverage'){
+    title=`${region}: ${properties[finding.property]??finding.property} could not be verified`;
+    description=finding.reason??finding.summary;
+  }else if(['pixels','region-pixels'].includes(finding.category)){
     title=`${region} looks different`;
     description='The rendered pixels differ from the reference beyond the configured limit. Compare the images to decide whether this needs a fix.';
   }else if(finding.category==='geometry'){
@@ -78,7 +81,7 @@ export async function writeReport(dir,report){
     const pictures={};for(const [key,file] of Object.entries(finding.evidence.images))pictures[key]=await image(file);
     return `<article class="finding-detail" data-finding-id="${id}" ${index?'hidden':''}>
 <header class="detail-heading"><div><p class="region-label">${escape(name(finding.target.region))} <span>· Finding ${index+1} of ${findings.length}</span></p><h2>${escape(view.title)}</h2><p class="description">${escape(view.description)}</p></div><span class="status" data-detail-status="${id}">Unreviewed</span></header>
-${['font','asset','runtime','pixels'].includes(finding.category)?`<section class="recorded-check"><h3>Recorded check</h3><p>${escape(finding.summary)}</p>${finding.target.resource?`<p><strong>Resource:</strong> <code>${escape(finding.target.resource)}</code></p>`:''}<p><strong>Expected:</strong> ${escape(view.expected)} <span>·</span> <strong>Actual:</strong> ${escape(view.actual)}</p></section>`:''}
+${['font','asset','runtime','pixels','coverage'].includes(finding.category)?`<section class="recorded-check"><h3>Recorded check</h3><p>${escape(finding.summary)}</p>${finding.target.resource?`<p><strong>Resource:</strong> <code>${escape(finding.target.resource)}</code></p>`:''}<p><strong>Expected:</strong> ${escape(view.expected)} <span>·</span> <strong>Actual:</strong> ${escape(view.actual)}</p></section>`:''}
 ${propertyTable(view.properties,finding.evidenceType==='pixel-comparison')}
 <section class="evidence-section" aria-label="Visual evidence"><div class="evidence-toolbar"><h3>Compare the affected area</h3><span class="muted">${finding.evidence.scope==='region'?'Affected area':'Full page'} · ${finding.evidence.rect.width} × ${finding.evidence.rect.height}px</span></div>
 <div class="comparison" data-evidence-view="compare"><figure><figcaption>Figma reference <span>Expected</span></figcaption><div class="image-surface"><img alt="Figma reference for ${region}" src="${pictures.reference}"></div></figure><figure><figcaption>Browser capture <span>Actual</span></figcaption><div class="image-surface"><img alt="Browser capture for ${region}" src="${pictures.actual}"></div></figure></div>

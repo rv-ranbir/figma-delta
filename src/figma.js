@@ -9,16 +9,19 @@ export function parseFigmaUrl(value){
   if(!['design','file','proto'].includes(kind)||!key||!/^[a-zA-Z0-9]+$/.test(key)||!node||!/^\d+[:-]\d+$/.test(node))throw Error('Use a Figma frame link containing ?node-id=123-456');
   return {key,nodeId:node.replace('-',':')};
 }
-export function flatten(node,origin={x:0,y:0},out=[]){
+export function flatten(node,origin={x:0,y:0},out=[],ancestorPaintUnsupported=false){
   if(node.visible===false)return out;
   const b=node.absoluteBoundingBox;
   out.push({id:node.id,name:node.name,type:node.type,componentId:node.componentId,
     rect:b?{x:b.x-origin.x,y:b.y-origin.y,width:b.width,height:b.height}:undefined,
     text:node.characters,style:node.style,fills:node.fills,strokes:node.strokes,
+    characterStyleOverrides:node.characterStyleOverrides,styleOverrideTable:node.styleOverrideTable,
+    opacity:node.opacity,blendMode:node.blendMode,effects:node.effects,ancestorPaintUnsupported,paintMetadataVersion:1,
     cornerRadius:node.cornerRadius,layoutMode:node.layoutMode,itemSpacing:node.itemSpacing,primaryAxisAlignItems:node.primaryAxisAlignItems,layoutWrap:node.layoutWrap,
     paddingLeft:node.paddingLeft,paddingRight:node.paddingRight,paddingTop:node.paddingTop,paddingBottom:node.paddingBottom,
     boundVariables:node.boundVariables,styles:node.styles});
-  for(const child of node.children??[])flatten(child,origin,out);return out;
+  const unsupported=ancestorPaintUnsupported||(node.opacity??1)!==1||(node.blendMode&&!['NORMAL','PASS_THROUGH'].includes(node.blendMode))||(node.effects??[]).some(e=>e.visible!==false&&['LAYER_BLUR','BACKGROUND_BLUR'].includes(e.type));
+  for(const child of node.children??[])flatten(child,origin,out,unsupported);return out;
 }
 async function api(endpoint,token,fetcher){
   const response=await fetcher('https://api.figma.com/v1/'+endpoint,{headers:{'X-Figma-Token':token},signal:AbortSignal.timeout(30000)});

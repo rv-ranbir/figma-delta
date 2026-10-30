@@ -13,7 +13,7 @@ const temp=()=>fs.mkdtemp(path.join(os.tmpdir(),'fidelity-test-'));
 const png=async(file,color,w=20,h=20)=>sharp({create:{width:w,height:h,channels:4,background:color}}).png().toFile(file);
 
 test('exact images pass and fully changed images differ',async t=>{
- const d=await temp();t.after(()=>fs.rm(d,{recursive:true,force:true}));
+ const d=await temp();t.after(()=>fs.rm(d,{recursive:true,force:true,maxRetries:5,retryDelay:100}));
  await png(path.join(d,'a.png'),'#000');await png(path.join(d,'b.png'),'#fff');
  const same=await compare(path.join(d,'a.png'),path.join(d,'a.png'),path.join(d,'same'));
  assert.equal(same.mismatchPercent,0);
@@ -21,7 +21,7 @@ test('exact images pass and fully changed images differ',async t=>{
  assert.equal(different.mismatchPercent,100);assert.equal(different.hotspots[0].changedPixels,400);
 });
 test('masks excluded from denominator and cannot hide entire image',async t=>{
- const d=await temp();t.after(()=>fs.rm(d,{recursive:true,force:true}));
+ const d=await temp();t.after(()=>fs.rm(d,{recursive:true,force:true,maxRetries:5,retryDelay:100}));
  await png(path.join(d,'a.png'),'#000');await png(path.join(d,'b.png'),'#fff');
  const r=await compare(path.join(d,'a.png'),path.join(d,'b.png'),path.join(d,'out'),{masks:[{x:0,y:0,width:10,height:20}]});
  assert.equal(r.comparedPixels,200);assert.equal(r.maskedPixels,200);assert.equal(r.mismatchPercent,100);
@@ -33,11 +33,11 @@ test('masks excluded from denominator and cannot hide entire image',async t=>{
  await assert.rejects(()=>compare(path.join(d,'a.png'),path.join(d,'b.png'),path.join(d,'out'),{masks:[{x:19,y:0,width:20,height:20}]}),/outside/);
 });
 test('dimension mismatch fails instead of rescaling',async t=>{
- const d=await temp();t.after(()=>fs.rm(d,{recursive:true,force:true}));await png(path.join(d,'a.png'),'black');await png(path.join(d,'b.png'),'black',21,20);
+ const d=await temp();t.after(()=>fs.rm(d,{recursive:true,force:true,maxRetries:5,retryDelay:100}));await png(path.join(d,'a.png'),'black');await png(path.join(d,'b.png'),'black',21,20);
  await assert.rejects(()=>compare(path.join(d,'a.png'),path.join(d,'b.png'),d),/No auto-resize/);
 });
 test('regional compare catches localized differences and respects masks',async t=>{
- const d=await temp();t.after(()=>fs.rm(d,{recursive:true,force:true}));await png(path.join(d,'a.png'),'black');await png(path.join(d,'b.png'),'white');
+ const d=await temp();t.after(()=>fs.rm(d,{recursive:true,force:true,maxRetries:5,retryDelay:100}));await png(path.join(d,'a.png'),'black');await png(path.join(d,'b.png'),'white');
  assert.equal(await compareRegion(path.join(d,'a.png'),path.join(d,'b.png'),{x:0,y:0,width:10,height:20}),100);
  await assert.rejects(()=>compareRegion(path.join(d,'a.png'),path.join(d,'b.png'),{x:18,y:0,width:10,height:20}),/outside/);
  await assert.rejects(()=>compareRegion(path.join(d,'a.png'),path.join(d,'b.png'),{x:0,y:0,width:10,height:20},{masks:[{x:0,y:0,width:10,height:20}]}),/fully masked/);
@@ -98,12 +98,12 @@ test('strict config rejects duplicate screens, bad budgets, unexpected keys',()=
  assert.equal(configSchema.parse({version:1,screens:[s]}).screens[0].pixelThreshold,0.1);
 });
 test('path traversal prevented and operation lock released after errors',async t=>{
- const d=await temp();t.after(()=>fs.rm(d,{recursive:true,force:true}));assert.throws(()=>inside(d,'../secret'));
+ const d=await temp();t.after(()=>fs.rm(d,{recursive:true,force:true,maxRetries:5,retryDelay:100}));assert.throws(()=>inside(d,'../secret'));
  await assert.rejects(()=>withLock(d,async()=>{await assert.rejects(()=>withLock(d,async()=>{}),/Another/);throw Error('test failure');}),/test failure/);
  assert.equal(await withLock(d,async()=>42),42);
 });
 test('installer preserves existing MCP entries, does not overwrite setup',async t=>{
- const d=await temp();t.after(()=>fs.rm(d,{recursive:true,force:true}));
+ const d=await temp();t.after(()=>fs.rm(d,{recursive:true,force:true,maxRetries:5,retryDelay:100}));
  await writeJson(path.join(d,'.cursor','mcp.json'),{mcpServers:{existing:{url:'https://example.com/mcp'}}});
  const existing={
   'AGENTS.md':'Use company components and tokens.',
@@ -118,7 +118,7 @@ test('installer preserves existing MCP entries, does not overwrite setup',async 
  for(const [file,content] of Object.entries(existing))assert.equal(await fs.readFile(path.join(d,file),'utf8'),content);
 });
 test('Figma sync uses token only on API, saves manifest, refuses incorrect viewport',async t=>{
- const d=await temp();t.after(()=>fs.rm(d,{recursive:true,force:true}));const bytes=await sharp({create:{width:20,height:20,channels:4,background:'white'}}).png().toBuffer();const calls=[];
+ const d=await temp();t.after(()=>fs.rm(d,{recursive:true,force:true,maxRetries:5,retryDelay:100}));const bytes=await sharp({create:{width:20,height:20,channels:4,background:'white'}}).png().toBuffer();const calls=[];
  const fetcher=async(url,opts)=>{calls.push({url,opts});if(url.includes('/nodes?'))return Response.json({version:'v1',nodes:{'1:2':{document:{id:'1:2',name:'Frame',absoluteBoundingBox:{x:100,y:100,width:20,height:20},children:[]}}}});if(url.includes('/images/'))return Response.json({images:{'1:2':'https://export.example/frame.png'}});return new Response(bytes);};
  const s={name:'desktop',figmaUrl:'https://figma.com/design/abc/File?node-id=1-2',viewport:{width:20,height:20}};
  const r=await syncFigma(d,s,{token:'fake-token',fetcher});assert.equal(r.version,'v1');assert.equal(calls[0].opts.headers['X-Figma-Token'],'fake-token');assert.equal(calls[2].opts.headers,undefined);
@@ -126,7 +126,7 @@ test('Figma sync uses token only on API, saves manifest, refuses incorrect viewp
  await assert.rejects(()=>syncFigma(d,{...s,viewport:{width:21,height:20}},{token:'fake',fetcher}),/Match them/);
 });
 test('Figma auth and rate limit errors are actionable, do not persist token',async t=>{
- const d=await temp();t.after(()=>fs.rm(d,{recursive:true,force:true}));const s={name:'desktop',figmaUrl:'https://figma.com/design/abc/File?node-id=1-2'};
+ const d=await temp();t.after(()=>fs.rm(d,{recursive:true,force:true,maxRetries:5,retryDelay:100}));const s={name:'desktop',figmaUrl:'https://figma.com/design/abc/File?node-id=1-2'};
  await assert.rejects(()=>syncFigma(d,s,{token:''}),/FIGMA_ACCESS_TOKEN/);
  await assert.rejects(()=>syncFigma(d,s,{token:'do-not-print-me',fetcher:async()=>new Response('',{status:429,headers:{'retry-after':'30'}})}),e=>/rate limited/.test(e.message)&&!e.message.includes('do-not-print-me'));
 });

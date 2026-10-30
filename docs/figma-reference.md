@@ -39,6 +39,8 @@ The REST snapshot preserves variable and asset references; use the official Figm
 
 A region's `nodeId` maps a unique DOM selector to a node in the synced manifest. Explicit `rect` and `styles` override derived values before a session starts. Missing and ambiguous selectors fail rather than being guessed.
 
+Map text nodes to the smallest matching text elements. Delta compares visible DOM text runs inside the mapped element, including child class styles and text-fill overrides. Mixed Figma text styles, unsupported paints or compositing produce explicit unverified coverage findings rather than silently passing. Uniform rich-text overrides are supported. See [property coverage](findings-format.md#exact-colors-and-spacing) for limits and older snapshot handling. A PNG alone cannot supply expected text colors.
+
 Figma positions do not establish CSS margins. Supply expected margins explicitly when known, and do not infer padding or gap from screenshots. If a design value conflicts with a required repository token or component pattern, report the conflict and retain the original reference until it is resolved.
 
 ## Keep comparisons reproducible
